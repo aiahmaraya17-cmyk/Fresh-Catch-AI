@@ -1,0 +1,202 @@
+{
+  "model_version": "FreshCatch-CNN-v1.0-MobileNetV2",
+  "evaluation_dataset_size": 32,
+  "metrics": {
+    "accuracy": 0.7188,
+    "precision_macro": 0.7194,
+    "recall_macro": 0.704,
+    "f1_score_macro": 0.7096,
+    "precision_weighted": 0.7281,
+    "recall_weighted": 0.7188,
+    "f1_score_weighted": 0.7218
+  },
+  "confusion_matrix": {
+    "classes": [
+      "Fresh",
+      "Moderately Fresh",
+      "Less Fresh",
+      "Not Fresh"
+    ],
+    "matrix": [
+      [
+        8,
+        1,
+        1,
+        0
+      ],
+      [
+        1,
+        4,
+        1,
+        0
+      ],
+      [
+        1,
+        0,
+        4,
+        2
+      ],
+      [
+        0,
+        0,
+        2,
+        7
+      ]
+    ]
+  },
+  "per_class_metrics": {
+    "Fresh": {
+      "precision": 0.8,
+      "recall": 0.8,
+      "f1_score": 0.8,
+      "support": 10
+    },
+    "Moderately Fresh": {
+      "precision": 0.8,
+      "recall": 0.6667,
+      "f1_score": 0.7273,
+      "support": 6
+    },
+    "Less Fresh": {
+      "precision": 0.5,
+      "recall": 0.5714,
+      "f1_score": 0.5333,
+      "support": 7
+    },
+    "Not Fresh": {
+      "precision": 0.7778,
+      "recall": 0.7778,
+      "f1_score": 0.7778,
+      "support": 9
+    }
+  },
+  "misclassifications": [
+    {
+      "sample_id": 7,
+      "filename": "fish_0007_tilapia_fresh_bright.jpg",
+      "image_url": "/dataset/raw/fish_0007_tilapia_fresh_bright.jpg",
+      "species": "Tilapia",
+      "actual_class": "Fresh",
+      "predicted_class": "Less Fresh",
+      "confidence": 0.4,
+      "lighting": "Bright",
+      "background": "Cluttered",
+      "orientation": "Side",
+      "quality": "Low",
+      "possible_cause": "Environmental variations (Bright lighting / Low quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 24,
+      "filename": "fish_0024_matangbaka_fresh_dim.jpg",
+      "image_url": "/dataset/raw/fish_0024_matangbaka_fresh_dim.jpg",
+      "species": "Matangbaka (Bigeye Scad)",
+      "actual_class": "Fresh",
+      "predicted_class": "Moderately Fresh",
+      "confidence": 0.4583,
+      "lighting": "Dim",
+      "background": "Clean",
+      "orientation": "Front",
+      "quality": "Low",
+      "possible_cause": "Environmental variations (Dim lighting / Low quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 72,
+      "filename": "fish_0072_maya-maya_moderately_fresh_dim.jpg",
+      "image_url": "/dataset/raw/fish_0072_maya-maya_moderately_fresh_dim.jpg",
+      "species": "Maya-Maya (Red Snapper)",
+      "actual_class": "Moderately Fresh",
+      "predicted_class": "Fresh",
+      "confidence": 0.525,
+      "lighting": "Dim",
+      "background": "Cluttered",
+      "orientation": "Angled",
+      "quality": "High",
+      "possible_cause": "Environmental variations (Dim lighting / High quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 73,
+      "filename": "fish_0073_maya-maya_moderately_fresh_dim.jpg",
+      "image_url": "/dataset/raw/fish_0073_maya-maya_moderately_fresh_dim.jpg",
+      "species": "Maya-Maya (Red Snapper)",
+      "actual_class": "Moderately Fresh",
+      "predicted_class": "Less Fresh",
+      "confidence": 0.5,
+      "lighting": "Dim",
+      "background": "Wet-market",
+      "orientation": "Angled",
+      "quality": "High",
+      "possible_cause": "Environmental variations (Dim lighting / High quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 90,
+      "filename": "fish_0090_tilapia_less_fresh_bright.jpg",
+      "image_url": "/dataset/raw/fish_0090_tilapia_less_fresh_bright.jpg",
+      "species": "Tilapia",
+      "actual_class": "Less Fresh",
+      "predicted_class": "Not Fresh",
+      "confidence": 0.6417,
+      "lighting": "Bright",
+      "background": "Cluttered",
+      "orientation": "Angled",
+      "quality": "Low",
+      "possible_cause": "Environmental variations (Bright lighting / Low quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 97,
+      "filename": "fish_0097_tamban_less_fresh_dim.jpg",
+      "image_url": "/dataset/raw/fish_0097_tamban_less_fresh_dim.jpg",
+      "species": "Tamban (Sardines)",
+      "actual_class": "Less Fresh",
+      "predicted_class": "Not Fresh",
+      "confidence": 0.375,
+      "lighting": "Dim",
+      "background": "Wet-market",
+      "orientation": "Side",
+      "quality": "High",
+      "possible_cause": "Environmental variations (Dim lighting / High quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 111,
+      "filename": "fish_0111_maya-maya_less_fresh_normal.jpg",
+      "image_url": "/dataset/raw/fish_0111_maya-maya_less_fresh_normal.jpg",
+      "species": "Maya-Maya (Red Snapper)",
+      "actual_class": "Less Fresh",
+      "predicted_class": "Fresh",
+      "confidence": 0.3333,
+      "lighting": "Normal",
+      "background": "Wet-market",
+      "orientation": "Angled",
+      "quality": "Medium",
+      "possible_cause": "Environmental variations (Normal lighting / Medium quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 154,
+      "filename": "fish_0154_maya-maya_not_fresh_bright.jpg",
+      "image_url": "/dataset/raw/fish_0154_maya-maya_not_fresh_bright.jpg",
+      "species": "Maya-Maya (Red Snapper)",
+      "actual_class": "Not Fresh",
+      "predicted_class": "Less Fresh",
+      "confidence": 0.4167,
+      "lighting": "Bright",
+      "background": "Wet-market",
+      "orientation": "Partial view",
+      "quality": "Low",
+      "possible_cause": "Environmental variations (Bright lighting / Low quality) introduced subtle feature shifts near decision boundary."
+    },
+    {
+      "sample_id": 155,
+      "filename": "fish_0155_maya-maya_not_fresh_normal.jpg",
+      "image_url": "/dataset/raw/fish_0155_maya-maya_not_fresh_normal.jpg",
+      "species": "Maya-Maya (Red Snapper)",
+      "actual_class": "Not Fresh",
+      "predicted_class": "Less Fresh",
+      "confidence": 0.4333,
+      "lighting": "Normal",
+      "background": "Wet-market",
+      "orientation": "Front",
+      "quality": "Medium",
+      "possible_cause": "Environmental variations (Normal lighting / Medium quality) introduced subtle feature shifts near decision boundary."
+    }
+  ],
+  "evaluated_at": "2026-08-19T18:36:00Z"
+}

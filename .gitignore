@@ -1,0 +1,51 @@
+# ── Node / frontend ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# ── Python / AI ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+.Python
+pip-log.txt
+
+# ── Trained model binaries (large files) ─────────────────────────────────────
+# Uncomment if you do NOT want to commit model weights:
+# ai/models/saved/*.joblib
+
+# ── SQLite database files ─────────────────────────────────────────────────────
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# ── Environment / secrets ─────────────────────────────────────────────────────
+.env
+backend/.env
+!backend/.env.example
+
+# ── OS / editor artefacts ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# ── Uploaded images (runtime) ────────────────────────────────────────────────
+backend/uploads/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+
+# ── Test/temp scripts ─────────────────────────────────────────────────────────
+_*.py
+_*.js

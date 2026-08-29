@@ -1,0 +1,129 @@
+{
+  "model_version": "FreshCatch-CNN-v1.0-MobileNetV2",
+  "total_evaluated_samples": 160,
+  "benchmarks": {
+    "lighting": [
+      {
+        "condition": "Bright",
+        "sample_count": 46,
+        "accuracy": 0.8696,
+        "f1_score": 0.8522,
+        "status": "Acceptable"
+      },
+      {
+        "condition": "Normal",
+        "sample_count": 62,
+        "accuracy": 0.9355,
+        "f1_score": 0.9351,
+        "status": "Robust"
+      },
+      {
+        "condition": "Dim",
+        "sample_count": 52,
+        "accuracy": 0.8846,
+        "f1_score": 0.8823,
+        "status": "Robust"
+      }
+    ],
+    "background": [
+      {
+        "condition": "Clean",
+        "sample_count": 53,
+        "accuracy": 0.9057,
+        "f1_score": 0.9057,
+        "status": "Robust"
+      },
+      {
+        "condition": "Wet-market",
+        "sample_count": 53,
+        "accuracy": 0.8679,
+        "f1_score": 0.8705,
+        "status": "Acceptable"
+      },
+      {
+        "condition": "Cluttered",
+        "sample_count": 54,
+        "accuracy": 0.9259,
+        "f1_score": 0.9204,
+        "status": "Robust"
+      }
+    ],
+    "orientation": [
+      {
+        "condition": "Side",
+        "sample_count": 40,
+        "accuracy": 0.925,
+        "f1_score": 0.9174,
+        "status": "Robust"
+      },
+      {
+        "condition": "Angled",
+        "sample_count": 39,
+        "accuracy": 0.8718,
+        "f1_score": 0.871,
+        "status": "Acceptable"
+      },
+      {
+        "condition": "Front",
+        "sample_count": 44,
+        "accuracy": 0.9545,
+        "f1_score": 0.9541,
+        "status": "Robust"
+      },
+      {
+        "condition": "Partial view",
+        "sample_count": 37,
+        "accuracy": 0.8378,
+        "f1_score": 0.8336,
+        "status": "Acceptable"
+      }
+    ],
+    "distance": [
+      {
+        "condition": "Close",
+        "sample_count": 57,
+        "accuracy": 0.9298,
+        "f1_score": 0.9316,
+        "status": "Robust"
+      },
+      {
+        "condition": "Medium",
+        "sample_count": 52,
+        "accuracy": 0.9038,
+        "f1_score": 0.9038,
+        "status": "Robust"
+      },
+      {
+        "condition": "Far",
+        "sample_count": 51,
+        "accuracy": 0.8627,
+        "f1_score": 0.8466,
+        "status": "Acceptable"
+      }
+    ],
+    "image_quality": [
+      {
+        "condition": "High",
+        "sample_count": 45,
+        "accuracy": 0.9333,
+        "f1_score": 0.9286,
+        "status": "Robust"
+      },
+      {
+        "condition": "Medium",
+        "sample_count": 53,
+        "accuracy": 0.9245,
+        "f1_score": 0.9224,
+        "status": "Robust"
+      },
+      {
+        "condition": "Low",
+        "sample_count": 62,
+        "accuracy": 0.8548,
+        "f1_score": 0.8585,
+        "status": "Acceptable"
+      }
+    ]
+  },
+  "evaluated_at": "2026-08-19T18:36:30Z"
+}
