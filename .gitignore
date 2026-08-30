@@ -30,6 +30,9 @@ backend/*.db-wal
 backend/.env
 !backend/.env.example
 
+# ── Dataset raw images (large files — generate locally with seed_dataset.py) ──
+ai/dataset/raw/
+
 # ── OS / editor artefacts ────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
