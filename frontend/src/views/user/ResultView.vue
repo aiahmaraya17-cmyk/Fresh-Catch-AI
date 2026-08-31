@@ -92,7 +92,7 @@
 
         <!-- Bottom Actions -->
         <div class="result-actions">
-          <router-link to="/analyze" class="btn btn-primary btn-lg w-full">
+          <router-link to="/analyze" class="btn btn-primary btn-lg w-full" @click="sessionStorage.removeItem('freshcatch_active_result')">
             Analyze Another Fish
           </router-link>
           <router-link to="/history" class="btn btn-secondary btn-lg w-full">
@@ -172,6 +172,12 @@ const safetyLevel = computed(() => {
 
 onMounted(async () => {
   const cached = sessionStorage.getItem('freshcatch_active_result');
+
+  // Always clear the cache immediately after reading it.
+  // This ensures the next analysis never gets this stale result —
+  // even if the user navigates back without starting a new analysis.
+  sessionStorage.removeItem('freshcatch_active_result');
+
   if (cached) {
     try {
       resultData.value = JSON.parse(cached);

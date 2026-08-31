@@ -467,6 +467,12 @@ async function submitAnalysis() {
 
   isAnalyzing.value      = true;
   qualityRejection.value = null;
+
+  // Clear any previous result from sessionStorage BEFORE sending
+  // the new request — this prevents ResultView from ever reading
+  // a stale cached result if the navigation races the write.
+  sessionStorage.removeItem('freshcatch_active_result');
+
   startTicker();
 
   try {

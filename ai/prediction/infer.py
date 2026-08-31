@@ -460,17 +460,27 @@ def science_based_classify(image_path):
     )
 
     # White-background contamination (tray elevates body_b readings)
-    white_bg_contamination = (global_brightness > 0.72) and (body_b < 10)
+    # FIX: only apply when body_b is also positively elevated (>= 5), meaning
+    # the tray IS actually pushing it warm. If body_b is already negative/neutral,
+    # the fish body itself is giving a cool reading — that's genuinely fresh.
+    white_bg_contamination = (global_brightness > 0.72) and (body_b >= 5) and (body_b < 12)
 
     # Infestation / severe decomposition detector
+    # FIX 1: Raise surf_std threshold from 0.14→0.20 to avoid triggering on
+    #         fish scales (scales are normal surface texture on fresh fish).
+    # FIX 2: Raise global_lap thresholds: 800→1200 and 600→1000.
+    #         Real market photos of fresh fish regularly have global_lap 400-800
+    #         from scales, wet surfaces, and background detail.
+    # FIX 3: Remove the condition "global_lap > 600 and body_b < 10 and
+    #         global_brightness > 0.65" — this was falsely flagging bright fresh
+    #         fish on white ice trays as infested.
     redness_spread    = abs(gill_body_a_diff) < 12
     infestation_score = 0.0
-    if surf_std > 0.14 and global_lap > 800:
-        infestation_score += 1.5
-    if surf_std > 0.10 and redness_spread and gill_a > 4:
-        infestation_score += 1.5
-    if global_lap > 600 and body_b < 10 and global_brightness > 0.65:
-        infestation_score += 1.0
+    if surf_std > 0.20 and global_lap > 1200:
+        infestation_score += 1.5   # genuinely very high texture + sharpness
+    if surf_std > 0.16 and redness_spread and gill_a > 4:
+        infestation_score += 1.5   # uniform redness spread across image
+    # Removed the "bright + sharp + neutral = infested" condition — too broad
     infestation_detected = (infestation_score >= 2.5)
 
     # ── SCORING ───────────────────────────────────────────────────────────
@@ -482,7 +492,10 @@ def science_based_classify(image_path):
     if bleached or infestation_detected:
         b_contrib = 0.0
     elif bb < 8:
-        b_contrib = 0.0 if white_bg_contamination else +2.5
+        # white_bg_contamination only blocks the bonus when body_b is in the
+        # ambiguous 5-12 range (tray could be pulling it low). When body_b < 5
+        # the fish itself is genuinely cool/neutral → award the bonus.
+        b_contrib = 0.0 if (white_bg_contamination and bb >= 5) else +2.5
     elif bb < 13:
         b_contrib = 0.0 if white_bg_contamination else +1.5
     elif bb < 18:
@@ -523,17 +536,23 @@ def science_based_classify(image_path):
     }
 
     # Signal 3: Body luster
+    # FIX: Lower the "good" threshold — real fresh fish on market surfaces
+    # have luster 0.06–0.18 (wet scales, ambient light diffusion). The old
+    # threshold (0.28 for +2.0) was calibrated only on synthetic images.
+    # Also: if body_b is already strongly negative (<= 5), the fish is
+    # genuinely cool/silver — don't penalise low luster in that case.
     l_raw = 0.0 if tray_leak else body_luster
-    if l_raw > 0.28:
+    if l_raw > 0.22:
         l_contrib = +2.0
-    elif l_raw > 0.16:
+    elif l_raw > 0.12:
         l_contrib = +1.0
-    elif l_raw > 0.08:
+    elif l_raw > 0.06:
         l_contrib = 0.0
-    elif l_raw > 0.04:
-        l_contrib = -1.0
+    elif l_raw > 0.03:
+        # Only penalise if other signals also suggest staleness
+        l_contrib = 0.0 if bb <= 5 else -1.0
     else:
-        l_contrib = -2.0
+        l_contrib = 0.0 if bb <= 5 else -2.0
     score += l_contrib
     signals["body_luster"] = {
         "value": round(body_luster, 4), "contribution": l_contrib,
@@ -541,12 +560,17 @@ def science_based_classify(image_path):
     }
 
     # Signal 4: Eye clarity — relative Laplacian ratio
-    # Maggot guard: cap positive contribution when infestation detected
+    # Maggot guard: cap positive contribution when infestation detected.
+    # FIX: Require corroboration for the +1.5 bonus — only award it when
+    # body_b or gill_a is also showing fresh-fish values. This prevents a
+    # misdetected head-side on a stale fish from pushing it toward Fresh.
     ela = eye_lap_adj
+    # "Other signals look fresh" = body_b < 18 AND gill_a > -3
+    other_signals_fresh = (bb < 18) and (gill_a > -3)
     if infestation_detected:
         eye_contrib = 0.0 if ela > 0.8 else -1.5
     elif ela > 2.5:
-        eye_contrib = +1.5
+        eye_contrib = +1.5 if other_signals_fresh else +0.5
     elif ela > 1.4:
         eye_contrib = +0.5
     elif ela > 0.8:
@@ -587,9 +611,12 @@ def science_based_classify(image_path):
                           "note": "gill brightness"}
 
     # Signal 7: Surface texture
-    if surf_std > 0.18 and body_luster < 0.10:
-        tex_contrib = -1.0
-    elif surf_std > 0.14 and body_luster < 0.14:
+    # FIX: Raise thresholds — fish scales naturally produce surf_std 0.10-0.18.
+    # Only flag as decay when combined with very high texture AND low luster AND
+    # warm body_b (which together mean the surface is mucus-covered, not scaled).
+    if surf_std > 0.24 and body_luster < 0.08 and bb > 12:
+        tex_contrib = -1.0   # very rough + dull + warm = mucus/decay
+    elif surf_std > 0.20 and body_luster < 0.10 and bb > 8:
         tex_contrib = -0.5
     else:
         tex_contrib = 0.0
