@@ -19,7 +19,28 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
+
+function startServer(port) {
+  const server = app.listen(port, () => {
+    console.log(`====================================================`);
+    console.log(` FreshCatch AI Backend REST API Server`);
+    console.log(` Running on: http://localhost:${port}`);
+    console.log(` Target Domain: Roxas, Oriental Mindoro Wet Market`);
+    console.log(`====================================================`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`Port ${port} is busy. Retrying on ${port + 1}...`);
+      startServer(port + 1);
+      return;
+    }
+
+    console.error('Failed to start backend server:', err);
+    process.exit(1);
+  });
+}
 
 // Security & Parsing Middleware
 app.use(helmet({
@@ -76,12 +97,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(` FreshCatch AI Backend REST API Server`);
-  console.log(` Running on: http://localhost:${PORT}`);
-  console.log(` Target Domain: Roxas, Oriental Mindoro Wet Market`);
-  console.log(`====================================================`);
-});
+startServer(PORT);
 
 module.exports = app;

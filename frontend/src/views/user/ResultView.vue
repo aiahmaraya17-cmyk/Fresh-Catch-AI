@@ -6,9 +6,7 @@
       </router-link>
       <div class="top-meta">
         <span class="badge badge-cyan">{{ resultData.modelVersion || 'FreshCatch-CNN-v1.0-MobileNetV2' }}</span>
-        <button @click="printSlip" class="btn btn-outline btn-sm">
-          🖨️ Print Slip
-        </button>
+        <button @click="printSlip" class="btn btn-outline btn-sm">Print assessment</button>
       </div>
     </div>
 
@@ -28,7 +26,7 @@
 
         <!-- Image Quality Diagnostics -->
         <div v-if="resultData.quality_metrics && Object.keys(resultData.quality_metrics).length" class="glass-card quality-card">
-          <h4>Image Quality Diagnostics</h4>
+          <h4>Image quality</h4>
           <div class="quality-metrics-list">
             <div class="q-metric-item">
               <span class="q-lbl">Sharpness / Focus Index:</span>
@@ -49,18 +47,32 @@
       <!-- Right Column: Freshness Classification & Details -->
       <div class="right-col">
         <div class="glass-card classification-header-card">
-          <span class="result-tag">AI-ASSISTED VISUAL ASSESSMENT</span>
+          <span class="result-tag">Visual freshness report</span>
           <div class="badge-wrapper">
             <FreshnessBadge :classification="resultData.classification || 'Fresh'" />
           </div>
 
           <!-- Dual Recommendation Box -->
           <div class="recommendation-box">
-            <h4>Culinary & Market Recommendation</h4>
+            <h4>Culinary &amp; handling guidance</h4>
             <p class="rec-en">{{ resultData.recommendation }}</p>
             <p v-if="resultData.recommendation_tagalog" class="rec-tl">
               <em>"{{ resultData.recommendation_tagalog }}"</em>
             </p>
+            <div v-if="consumptionGuidance" class="consumption-guidance">
+              <div class="consumption-heading">
+                <span class="consumption-icon" aria-hidden="true">⏱</span>
+                <span>Estimated consumption timing</span>
+              </div>
+              <strong v-if="consumptionGuidance.consume_by">
+                Consume by {{ consumptionGuidance.consume_by }}
+              </strong>
+              <strong v-else>Do not consume</strong>
+              <p>{{ consumptionGuidance.window }}</p>
+              <p v-if="consumptionGuidance.window_tagalog" class="rec-tl">
+                <em>{{ consumptionGuidance.window_tagalog }}</em>
+              </p>
+            </div>
           </div>
 
           <!-- Food Safety Warning — shown for Less Fresh and Not Fresh -->
@@ -68,7 +80,15 @@
             v-if="resultData.food_safety_warning"
             :class="['safety-warning-box', safetyLevel]"
           >
-            <div class="safety-icon">{{ safetyLevel === 'danger' ? '🚫' : '⚠️' }}</div>
+            <div class="safety-icon" aria-hidden="true">
+              <svg v-if="safetyLevel === 'danger'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
             <div class="safety-content">
               <p class="safety-en">{{ strippedWarning }}</p>
               <p v-if="resultData.food_safety_warning_tagalog" class="safety-tl">
@@ -92,7 +112,7 @@
 
         <!-- Bottom Actions -->
         <div class="result-actions">
-          <router-link to="/analyze" class="btn btn-primary btn-lg w-full" @click="sessionStorage.removeItem('freshcatch_active_result')">
+          <router-link to="/analyze" class="btn btn-primary btn-lg w-full" @click="clearActiveResult">
             Analyze Another Fish
           </router-link>
           <router-link to="/history" class="btn btn-secondary btn-lg w-full">
@@ -152,6 +172,25 @@ function printSlip() {
   window.print();
 }
 
+function clearActiveResult() {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    window.sessionStorage.removeItem('freshcatch_active_result');
+  }
+}
+
+const consumptionGuidance = computed(() => {
+  if (resultData.value.consumption_guidance) return resultData.value.consumption_guidance;
+  const windows = {
+    Fresh: ['Best consumed today; refrigerate at 0-4°C and use within 1 day.', 'Pinakamainam kainin ngayong araw; ilagay sa 0-4°C na refrigerator at gamitin sa loob ng 1 araw.', 1],
+    'Moderately Fresh': ['Cook promptly today; if continuously refrigerated, use within 1 day. Do not eat raw.', 'Lutuin agad ngayong araw; kung naka-refrigerate, gamitin sa loob ng 1 araw. Huwag kainin nang hilaw.', 1],
+    'Less Fresh': ['Cook immediately today only after checking smell and texture. Do not store for later or eat raw.', 'Lutuin agad ngayong araw matapos suriin ang amoy at tekstura. Huwag itago o kainin nang hilaw.', 0],
+    'Not Fresh': ['Do not consume. Discard immediately; there is no safe consumption date.', 'Huwag kainin. Itapon agad; walang ligtas na petsa para kainin ito.', null],
+  };
+  const [window, windowTagalog, days] = windows[resultData.value.classification] || windows.Fresh;
+  const consumeBy = days === null ? null : new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  return { window, window_tagalog: windowTagalog, consume_by: consumeBy };
+});
+
 // Strip leading emoji prefix from warning strings (rendered separately as icon)
 const strippedWarning = computed(() => {
   const w = resultData.value.food_safety_warning || '';
@@ -165,8 +204,8 @@ const strippedWarningTl = computed(() => {
 
 const safetyLevel = computed(() => {
   const cls = (resultData.value.classification || '').toLowerCase();
-  if (cls === 'spoiled') return 'danger';
-  if (cls === 'not fresh') return 'danger';
+  if (cls.includes('not fresh') || cls.includes('spoiled') || cls.includes('stale') || cls.includes('bilasa')) return 'danger';
+  if (cls.includes('less fresh')) return 'caution';
   return 'caution';
 });
 
@@ -176,7 +215,7 @@ onMounted(async () => {
   // Always clear the cache immediately after reading it.
   // This ensures the next analysis never gets this stale result —
   // even if the user navigates back without starting a new analysis.
-  sessionStorage.removeItem('freshcatch_active_result');
+  clearActiveResult();
 
   if (cached) {
     try {
@@ -305,11 +344,12 @@ onMounted(async () => {
 }
 
 .result-tag {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--primary);
-  letter-spacing: 0.08em;
-  margin-bottom: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 0.85rem;
   display: block;
 }
 
@@ -341,6 +381,45 @@ onMounted(async () => {
   font-size: 0.85rem;
   color: var(--text-muted);
   line-height: 1.45;
+}
+
+.consumption-guidance {
+  margin-top: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  border-left: 3px solid var(--accent-teal);
+  background: rgba(45, 212, 191, 0.08);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.consumption-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent-teal);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.consumption-icon { font-size: 0.95rem; }
+
+.consumption-guidance strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-white);
+  font-size: 0.9rem;
+}
+
+.consumption-guidance p {
+  margin-top: 0.25rem;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.consumption-guidance .rec-tl {
+  color: var(--text-muted);
 }
 
 .result-actions {
@@ -399,11 +478,12 @@ onMounted(async () => {
 }
 
 .safety-icon {
-  font-size: 1.5rem;
-  line-height: 1;
+  color: inherit;
   flex-shrink: 0;
-  margin-top: 0.05rem;
+  margin-top: 0.15rem;
 }
+.safety-warning-box.danger .safety-icon { color: #fca5a5; }
+.safety-warning-box.caution .safety-icon { color: #fde68a; }
 
 .safety-content {
   display: flex;

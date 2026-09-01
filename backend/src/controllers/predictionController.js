@@ -94,6 +94,7 @@ exports.predict = async (req, res) => {
       visualIndicators: inferenceResult.visualIndicators,
       recommendation: inferenceResult.recommendation,
       recommendation_tagalog: inferenceResult.recommendation_tagalog,
+      consumption_guidance: inferenceResult.consumption_guidance || null,
       is_safe_to_cook: inferenceResult.is_safe_to_cook ?? true,
       food_safety_warning: inferenceResult.food_safety_warning ?? null,
       food_safety_warning_tagalog: inferenceResult.food_safety_warning_tagalog ?? null,

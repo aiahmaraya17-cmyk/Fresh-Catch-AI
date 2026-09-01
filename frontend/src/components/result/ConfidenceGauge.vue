@@ -37,7 +37,7 @@
       <div v-for="(pVal, pName) in probabilities" :key="pName" class="prob-row">
         <span class="prob-name">{{ pName }}</span>
         <div class="prob-bar-track">
-          <div class="prob-bar-fill" :style="{ width: (pVal * 100) + '%' }"></div>
+          <div class="prob-bar-fill" :class="barClass(pName)" :style="{ width: (pVal * 100) + '%' }"></div>
         </div>
         <span class="prob-val">{{ (pVal * 100).toFixed(1) }}%</span>
       </div>
@@ -87,6 +87,14 @@ const dashOffset = computed(() => {
   const fraction = Math.min(1, Math.max(0, props.confidence));
   return arcLength * (1 - fraction);
 });
+
+function barClass(name) {
+  const n = String(name).toLowerCase();
+  if (n.includes('moderately')) return 'fill-mod';
+  if (n.includes('less')) return 'fill-less';
+  if (n.includes('not') || n.includes('spoil')) return 'fill-stale';
+  return 'fill-fresh';
+}
 </script>
 
 <style scoped>
@@ -200,6 +208,10 @@ const dashOffset = computed(() => {
   border-radius: 3px;
   transition: width 0.6s ease;
 }
+.fill-fresh { background: var(--color-fresh); }
+.fill-mod { background: var(--color-moderate); }
+.fill-less { background: var(--color-less-fresh); }
+.fill-stale { background: var(--color-not-fresh); }
 
 .prob-val {
   text-align: right;

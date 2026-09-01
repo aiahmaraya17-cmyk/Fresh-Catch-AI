@@ -74,7 +74,14 @@
         <button class="lang-toggle-btn" @click="toggleLanguage">
           {{ authStore.language?.toUpperCase() || 'EN' }}
         </button>
-        <button class="hamburger" @click="toggleDrawer" :aria-expanded="drawerOpen" aria-label="Toggle navigation">
+        <button
+          class="hamburger"
+          :class="{ open: drawerOpen }"
+          @click="toggleDrawer"
+          :aria-expanded="drawerOpen"
+          aria-controls="mobile-navigation-drawer"
+          aria-label="Toggle navigation"
+        >
           <span class="bar" :class="{ open: drawerOpen }"></span>
           <span class="bar" :class="{ open: drawerOpen }"></span>
           <span class="bar" :class="{ open: drawerOpen }"></span>
@@ -82,14 +89,22 @@
       </div>
     </div>
 
-    <!-- Mobile drawer overlay -->
-    <Transition name="fade-overlay">
-      <div v-if="drawerOpen" class="drawer-overlay" @click="closeDrawer"></div>
-    </Transition>
+    <Teleport to="body">
+      <!-- Mobile drawer overlay -->
+      <Transition name="fade-overlay">
+        <div v-if="drawerOpen" class="drawer-overlay" @click="closeDrawer"></div>
+      </Transition>
 
-    <!-- Mobile drawer -->
-    <Transition name="slide-drawer">
-      <div v-if="drawerOpen" class="mobile-drawer" role="dialog" aria-label="Navigation menu">
+      <!-- Mobile drawer -->
+      <Transition name="slide-drawer">
+        <div
+          v-if="drawerOpen"
+          id="mobile-navigation-drawer"
+          class="mobile-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
+        >
 
         <!-- Drawer header -->
         <div class="drawer-header">
@@ -170,14 +185,15 @@
           </template>
         </div>
 
-      </div>
-    </Transition>
+        </div>
+      </Transition>
+    </Teleport>
 
   </nav>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import { translations } from '../../i18n/translations';
@@ -195,16 +211,26 @@ function closeDrawer()  { drawerOpen.value = false; }
 router.afterEach(() => closeDrawer());
 
 // Close drawer / prevent scroll on body when open
-import { watch } from 'vue';
 watch(drawerOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : '';
 });
 
+function handleEscape(event) {
+  if (event.key === 'Escape' && drawerOpen.value) closeDrawer();
+}
+
 // ── Scroll shadow ──────────────────────────────────────────────────────────
 const scrolled = ref(false);
 function onScroll() { scrolled.value = window.scrollY > 12; }
-onMounted(()       => window.addEventListener('scroll', onScroll, { passive: true }));
-onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('keydown', handleEscape);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', onScroll);
+  window.removeEventListener('keydown', handleEscape);
+  document.body.style.overflow = '';
+});
 
 // ── i18n ───────────────────────────────────────────────────────────────────
 function t(path) {
@@ -232,8 +258,8 @@ function handleLogout() {
 .navbar {
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: rgba(7, 13, 30, 0.85);
+  z-index: 1000;
+  background: rgba(5, 12, 24, 0.82);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--border-glass);
@@ -261,6 +287,7 @@ function handleLogout() {
   flex-shrink: 0;
   text-decoration: none;
 }
+.mobile-right { flex-shrink: 0; }
 .logo-icon {
   display: flex; align-items: center; justify-content: center;
   width: 36px; height: 36px;
@@ -365,13 +392,13 @@ function handleLogout() {
   transform-origin: center;
 }
 /* Animate to X when open */
-.hamburger:has(.bar.open) .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.hamburger:has(.bar.open) .bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
-.hamburger:has(.bar.open) .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.hamburger.open .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open .bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.hamburger.open .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 /* ── Drawer overlay ──────────────────────────────────────────────────────── */
 .drawer-overlay {
-  position: fixed; inset: 0; z-index: 101;
+  position: fixed; inset: 0; z-index: 1001;
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(3px);
 }
@@ -381,8 +408,9 @@ function handleLogout() {
 /* ── Drawer panel ────────────────────────────────────────────────────────── */
 .mobile-drawer {
   position: fixed; top: 0; right: 0; bottom: 0;
-  z-index: 102;
-  width: min(320px, 88vw);
+  z-index: 1002;
+  width: min(320px, calc(100vw - 1rem));
+  max-width: 100%;
   background: rgba(9, 17, 38, 0.97);
   backdrop-filter: blur(24px);
   border-left: 1px solid var(--border-glass);
@@ -448,4 +476,34 @@ function handleLogout() {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 .w-full { width: 100%; }
+
+@media (max-width: 420px) {
+  .nav-container {
+    gap: 0.5rem;
+  }
+
+  .brand-logo {
+    min-width: 0;
+    gap: 0.35rem;
+    font-size: 1.05rem;
+  }
+
+  .brand-logo .brand-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .brand-badge {
+    display: none;
+  }
+
+  .mobile-right {
+    gap: 0.4rem;
+  }
+
+  .lang-toggle-btn {
+    padding-inline: 0.55rem;
+  }
+}
 </style>

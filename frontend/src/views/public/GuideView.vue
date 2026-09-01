@@ -21,6 +21,7 @@
         </div>
         <div class="guide-table-wrap">
           <table class="guide-table">
+            <tbody>
             <tr>
               <td class="col-status"><span class="badge badge-fresh">Sariwa (Fresh)</span></td>
               <td>Prominent, convex cornea; crystal-clear lens with shiny jet-black pupil.</td>
@@ -33,6 +34,7 @@
               <td class="col-status"><span class="badge badge-not-fresh">Bilasa (Stale)</span></td>
               <td>Sunken, concave eye socket; opaque milky-grey cornea; dark red or brownish hemorrhage.</td>
             </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -48,6 +50,7 @@
         </div>
         <div class="guide-table-wrap">
           <table class="guide-table">
+            <tbody>
             <tr>
               <td class="col-status"><span class="badge badge-fresh">Sariwa (Fresh)</span></td>
               <td>Bright ruby-red to deep pink; clean with clear, non-sticky mucus.</td>
@@ -60,6 +63,7 @@
               <td class="col-status"><span class="badge badge-not-fresh">Bilasa (Stale)</span></td>
               <td>Pale brown, yellowish, or greyish; covered in thick, foul-smelling mucus.</td>
             </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -75,6 +79,7 @@
         </div>
         <div class="guide-table-wrap">
           <table class="guide-table">
+            <tbody>
             <tr>
               <td class="col-status"><span class="badge badge-fresh">Sariwa (Fresh)</span></td>
               <td>Vivid natural metallic sheen; tight, firmly attached scales; moist surface.</td>
@@ -87,6 +92,7 @@
               <td class="col-status"><span class="badge badge-not-fresh">Bilasa (Stale)</span></td>
               <td>Dull, bleached, or yellowish discoloration; loose, peeling scales; sticky surface.</td>
             </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -102,6 +108,7 @@
         </div>
         <div class="guide-table-wrap">
           <table class="guide-table">
+            <tbody>
             <tr>
               <td class="col-status"><span class="badge badge-fresh">Sariwa (Fresh)</span></td>
               <td>Pleasant oceanic or mild sea-breeze aroma; firm, springy flesh that springs back immediately.</td>
@@ -114,6 +121,7 @@
               <td class="col-status"><span class="badge badge-not-fresh">Bilasa (Stale)</span></td>
               <td>Strong sour, ammonia, or rotten odor; soft mushy flesh that leaves permanent indentations.</td>
             </tr>
+            </tbody>
           </table>
         </div>
       </div>

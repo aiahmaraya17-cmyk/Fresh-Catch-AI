@@ -51,7 +51,7 @@
 
       <!-- Quick Demo Account Switcher -->
       <div class="demo-accounts-box">
-        <span class="demo-title">⚡ Quick Demo One-Click Logins:</span>
+        <span class="demo-title">Demo accounts</span>
         <div class="demo-grid">
           <button @click="fillDemo('consumer')" class="demo-btn">
             <span class="demo-role">Consumer</span>

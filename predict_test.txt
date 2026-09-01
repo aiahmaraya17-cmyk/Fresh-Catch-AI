@@ -1,0 +1,2 @@
+fish_0001_bangus_fresh_bright.jpg => QUALITY_REJECTED
+fish_0025_matangbaka_fresh_dim.jpg => QUALITY_REJECTED

@@ -3,7 +3,7 @@
 
     <!-- Page header -->
     <div class="page-header text-center">
-      <span class="badge badge-cyan">AI Visual Classification</span>
+      <span class="badge badge-cyan">Visual classification</span>
       <h1>{{ t('analyze.title') }}</h1>
       <p class="subtitle">{{ t('analyze.subtitle') }}</p>
     </div>
@@ -155,7 +155,7 @@
 
         <!-- Tip strip below camera -->
         <div class="camera-tips">
-          <span>💡 Tip: Hold phone steady · Aim in bright light · Fill frame with fish</span>
+          <span>Hold the phone steady, use even light, and fill the frame with the fish.</span>
         </div>
       </div>
 
@@ -238,26 +238,156 @@
 
     </div><!-- /workspace-card -->
 
+    <div
+      v-if="showResultModal && analysisResult"
+      class="result-modal-backdrop"
+      @click.self="closeResultModal"
+    >
+      <div
+        class="result-modal-panel glass-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="result-modal-title"
+      >
+        <button class="result-modal-close" @click="closeResultModal" aria-label="Close result">
+          &times;
+        </button>
+
+        <div class="result-hero-summary">
+          <div>
+            <span class="result-hero-eyebrow">Analysis complete</span>
+            <h2 id="result-modal-title">Your fish freshness result</h2>
+          </div>
+          <div class="result-hero-status">
+            <FreshnessBadge :classification="analysisResult.classification || 'Fresh'" />
+            <div class="result-hero-confidence">
+              <strong>{{ ((analysisResult.confidence || 0.92) * 100).toFixed(1) }}%</strong>
+              <span>confidence</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-modal-grid">
+          <div class="result-image-panel">
+            <div class="result-image-frame">
+              <img :src="analysisResult.imageUrl || defaultSampleImage" :alt="'Analyzed fish result'" class="result-modal-image" />
+            </div>
+
+            <div v-if="analysisResult.quality_metrics && Object.keys(analysisResult.quality_metrics).length" class="result-metrics-box">
+              <h4>Image quality</h4>
+              <div class="result-metrics-list">
+                <div class="result-metric-item">
+                  <span>Sharpness / Focus Index</span>
+                  <strong>{{ analysisResult.quality_metrics.blur_variance }}</strong>
+                </div>
+                <div class="result-metric-item">
+                  <span>Luminance / Brightness</span>
+                  <strong>{{ analysisResult.quality_metrics.brightness_mean }}/255</strong>
+                </div>
+                <div class="result-metric-item">
+                  <span>Contrast Standard Dev</span>
+                  <strong>{{ analysisResult.quality_metrics.contrast_std }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-content-panel">
+            <span class="result-tag">Visual freshness report</span>
+            <div class="badge-wrapper">
+              <span class="result-detail-label">Classification details</span>
+            </div>
+
+            <div class="recommendation-box">
+              <h4>Culinary &amp; handling guidance</h4>
+              <p class="rec-en">{{ analysisResult.recommendation }}</p>
+              <p v-if="analysisResult.recommendation_tagalog" class="rec-tl">
+                <em>"{{ analysisResult.recommendation_tagalog }}"</em>
+              </p>
+              <div v-if="consumptionGuidance" class="consumption-guidance">
+                <div class="consumption-heading">
+                  <span class="consumption-icon" aria-hidden="true">⏱</span>
+                  <span>Estimated consumption timing</span>
+                </div>
+                <strong v-if="consumptionGuidance.consume_by">
+                  Consume by {{ consumptionGuidance.consume_by }}
+                </strong>
+                <strong v-else>Do not consume</strong>
+                <p>{{ consumptionGuidance.window }}</p>
+                <p v-if="consumptionGuidance.window_tagalog" class="rec-tl">
+                  <em>{{ consumptionGuidance.window_tagalog }}</em>
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-if="analysisResult.food_safety_warning"
+              :class="['safety-warning-box', safetyLevel]"
+            >
+              <div class="safety-icon" aria-hidden="true">
+                <svg v-if="safetyLevel === 'danger'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div class="safety-content">
+                <p class="safety-en">{{ strippedWarning }}</p>
+                <p v-if="analysisResult.food_safety_warning_tagalog" class="safety-tl">
+                  <em>{{ strippedWarningTl }}</em>
+                </p>
+              </div>
+            </div>
+
+            <ConfidenceGauge
+              :confidence="analysisResult.confidence || 0.92"
+              :probabilities="analysisResult.class_probabilities || analysisResult.classProbabilities"
+            />
+
+            <IndicatorList :indicators="analysisResult.visualIndicators || analysisResult.visual_indicators" />
+
+            <DisclaimerBanner />
+
+            <div class="result-actions">
+              <button class="btn btn-primary btn-lg w-full" @click="closeResultModal">Close</button>
+              <router-link to="/history" class="btn btn-secondary btn-lg w-full">View Assessment History</router-link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <DisclaimerBanner />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
 import { translations } from '../../i18n/translations';
+import FreshnessBadge from '../../components/result/FreshnessBadge.vue';
+import ConfidenceGauge from '../../components/result/ConfidenceGauge.vue';
+import IndicatorList from '../../components/result/IndicatorList.vue';
 import DisclaimerBanner from '../../components/common/DisclaimerBanner.vue';
 import ApiService from '../../services/api';
 
 const router    = useRouter();
 const route     = useRoute();
 const authStore = useAuthStore();
+const defaultSampleImage = '/dataset/raw/fish_0001_bangus_fresh_bright.jpg';
 
 // ── State ──────────────────────────────────────────────────────────────────
 const inputMode      = ref('camera');
 const selectedSpecies = ref('');
 const speciesOptions  = ref([]);
+const analysisResult  = ref(null);
+const showResultModal = ref(false);
 
 const videoRef       = ref(null);
 const mediaStream    = ref(null);
@@ -461,6 +591,56 @@ function stopTicker() {
   tickerInterval = null;
 }
 
+const strippedWarning = computed(() => {
+  const w = analysisResult.value?.food_safety_warning || '';
+  return w.replace(/^[🚫⚠️\s]+/, '').trim();
+});
+
+const strippedWarningTl = computed(() => {
+  const w = analysisResult.value?.food_safety_warning_tagalog || '';
+  return w.replace(/^[🚫⚠️\s]+/, '').trim();
+});
+
+const safetyLevel = computed(() => {
+  const cls = (analysisResult.value?.classification || '').toLowerCase();
+  if (cls.includes('not fresh') || cls.includes('spoiled') || cls.includes('stale') || cls.includes('bilasa')) return 'danger';
+  if (cls.includes('less fresh')) return 'caution';
+  return 'caution';
+});
+
+const consumptionGuidance = computed(() => {
+  const result = analysisResult.value;
+  if (!result) return null;
+  if (result.consumption_guidance) return result.consumption_guidance;
+  const classification = result.classification || 'Fresh';
+  const windows = {
+    Fresh: ['Best consumed today; refrigerate at 0-4°C and use within 1 day.', 'Pinakamainam kainin ngayong araw; ilagay sa 0-4°C na refrigerator at gamitin sa loob ng 1 araw.', 1],
+    'Moderately Fresh': ['Cook promptly today; if continuously refrigerated, use within 1 day. Do not eat raw.', 'Lutuin agad ngayong araw; kung naka-refrigerate, gamitin sa loob ng 1 araw. Huwag kainin nang hilaw.', 1],
+    'Less Fresh': ['Cook immediately today only after checking smell and texture. Do not store for later or eat raw.', 'Lutuin agad ngayong araw matapos suriin ang amoy at tekstura. Huwag itago o kainin nang hilaw.', 0],
+    'Not Fresh': ['Do not consume. Discard immediately; there is no safe consumption date.', 'Huwag kainin. Itapon agad; walang ligtas na petsa para kainin ito.', null],
+  };
+  const [window, windowTagalog, days] = windows[classification] || windows.Fresh;
+  const consumeBy = days === null ? null : new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  return { window, window_tagalog: windowTagalog, consume_by: consumeBy };
+});
+
+function closeResultModal() {
+  showResultModal.value = false;
+  analysisResult.value = null;
+}
+
+function updateModalScrollLock() {
+  document.body.style.overflow = showResultModal.value ? 'hidden' : '';
+}
+
+watch(showResultModal, updateModalScrollLock);
+
+function handleEscapeClose(event) {
+  if (event.key === 'Escape' && showResultModal.value) {
+    closeResultModal();
+  }
+}
+
 // ── Submit analysis ────────────────────────────────────────────────────────
 async function submitAnalysis() {
   if (!capturedImage.value || isAnalyzing.value) return;
@@ -491,8 +671,9 @@ async function submitAnalysis() {
     isAnalyzing.value = false;
 
     if (res.success) {
+      analysisResult.value = res;
+      showResultModal.value = true;
       sessionStorage.setItem('freshcatch_active_result', JSON.stringify(res));
-      router.push(`/result/${res.predictionId || 'latest'}`);
     } else {
       // Non-exception API failure
       qualityRejection.value = {
@@ -526,6 +707,8 @@ async function submitAnalysis() {
 onMounted(async () => {
   if (route.query.species) selectedSpecies.value = route.query.species;
 
+  window.addEventListener('keydown', handleEscapeClose);
+
   try {
     const res = await ApiService.getSpecies();
     if (res.success) speciesOptions.value = res.species;
@@ -535,6 +718,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleEscapeClose);
+  document.body.style.overflow = '';
   stopCamera();
   stopTicker();
   if (countdownTimer) clearInterval(countdownTimer);
@@ -900,6 +1085,381 @@ onUnmounted(() => {
 .fade-up-enter-active { transition: all 0.28s ease; }
 .fade-up-leave-active { transition: all 0.2s ease; }
 .fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: translateY(-8px); }
+
+.result-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  z-index: 1000;
+}
+
+.result-modal-panel {
+  position: relative;
+  width: min(1100px, 100vw);
+  max-height: 88vh;
+  overflow: hidden;
+  padding: 1rem 1rem 0.75rem;
+  border-radius: 1.5rem 1.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-modal-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.9rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid var(--border-glass);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--text-white);
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.result-hero-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 3.25rem 1rem 0.35rem;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.result-hero-eyebrow {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--accent-gold);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.result-hero-summary h2 {
+  margin: 0;
+  color: var(--text-white);
+  font-size: clamp(1.05rem, 2.5vw, 1.45rem);
+}
+
+.result-hero-status {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-shrink: 0;
+}
+
+.result-hero-confidence {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.result-hero-confidence strong {
+  color: var(--text-white);
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+}
+
+.result-hero-confidence span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.result-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 1.5rem;
+  align-items: flex-start;
+  overflow: auto;
+  padding: 0.5rem 0.15rem 0.25rem;
+}
+
+.result-image-panel,
+.result-content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.result-image-frame {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: #020817;
+}
+
+.result-modal-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.result-metrics-box {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.result-metrics-box h4 {
+  margin: 0 0 0.7rem;
+  font-size: 0.92rem;
+  color: var(--text-white);
+}
+
+.result-metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.result-metric-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.result-metric-item span {
+  color: var(--text-muted);
+}
+
+.result-metric-item strong {
+  color: var(--text-white);
+}
+
+.result-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: block;
+}
+
+.badge-wrapper {
+  margin-top: 0.2rem;
+}
+
+.result-detail-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.recommendation-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-glass);
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.recommendation-box h4 {
+  font-size: 0.92rem;
+  color: var(--text-white);
+  margin-bottom: 0.45rem;
+}
+
+.rec-en {
+  font-size: 0.9rem;
+  color: var(--text-main);
+  line-height: 1.5;
+  margin-bottom: 0.4rem;
+}
+
+.rec-tl {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.consumption-guidance {
+  margin-top: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  border-left: 3px solid var(--accent-teal);
+  background: rgba(45, 212, 191, 0.08);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.consumption-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent-teal);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.consumption-icon { font-size: 0.95rem; }
+
+.consumption-guidance strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-white);
+  font-size: 0.9rem;
+}
+
+.consumption-guidance p {
+  margin-top: 0.25rem;
+  color: var(--text-main);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.consumption-guidance .rec-tl {
+  color: var(--text-muted);
+}
+
+.safety-warning-box {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  border-width: 1px;
+  border-style: solid;
+}
+
+.safety-warning-box.danger {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.45);
+}
+
+.safety-warning-box.caution {
+  background: rgba(234, 179, 8, 0.10);
+  border-color: rgba(234, 179, 8, 0.40);
+}
+
+.safety-icon {
+  color: inherit;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.safety-warning-box.danger .safety-icon { color: #fca5a5; }
+.safety-warning-box.caution .safety-icon { color: #fde68a; }
+
+.safety-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.safety-en {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-white);
+  margin: 0;
+}
+
+.safety-warning-box.danger .safety-en { color: #fca5a5; }
+.safety-warning-box.caution .safety-en { color: #fde68a; }
+
+.safety-tl {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 820px) {
+  .result-modal-backdrop {
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .result-modal-panel {
+    width: min(1100px, 92vw);
+    max-height: 88vh;
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 820px) {
+  .result-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-modal-panel {
+    max-height: 88vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .result-modal-panel {
+    width: 100vw;
+    max-height: 88vh;
+    border-radius: 1.25rem 1.25rem 0 0;
+    padding: 0.9rem 0.9rem 0.75rem;
+  }
+
+  .result-modal-close {
+    top: 0.7rem;
+    right: 0.7rem;
+  }
+
+  .result-modal-grid {
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .result-hero-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.45rem 2.8rem 0.85rem 0.15rem;
+  }
+
+  .result-hero-status {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .result-hero-confidence {
+    align-items: flex-start;
+  }
+
+  .result-actions {
+    flex-direction: column;
+  }
+
+  .recommendation-box,
+  .safety-warning-box,
+  .result-metrics-box {
+    padding: 0.9rem;
+  }
+}
+
+@media (min-width: 480px) {
+  .result-actions {
+    flex-direction: row;
+  }
+}
 
 .text-cyan  { color: var(--primary); }
 .text-amber { color: #f59e0b; }

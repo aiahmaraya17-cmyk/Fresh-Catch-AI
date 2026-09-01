@@ -21,8 +21,8 @@ const props = defineProps({
 const badgeClass = computed(() => {
   const norm = props.classification.toLowerCase();
   if (norm.includes('moderately')) return 'badge-mod';
-  if (norm === 'not fresh')        return 'badge-less';
-  if (norm.includes('spoiled') || norm.includes('bilasa') || norm.includes('stale')) return 'badge-stale';
+  if (norm.includes('less fresh')) return 'badge-less';
+  if (norm.includes('not fresh') || norm.includes('spoiled') || norm.includes('bilasa') || norm.includes('stale')) return 'badge-stale';
   return 'badge-frsh';
 });
 
@@ -33,8 +33,8 @@ const displayName = computed(() => {
 const tagalogName = computed(() => {
   const norm = props.classification.toLowerCase();
   if (norm.includes('moderately')) return 'KATAMTAMANG SARIWA';
-  if (norm === 'not fresh')        return 'HINDI NA SARIWA';
-  if (norm.includes('spoiled') || norm.includes('bilasa') || norm.includes('stale')) return 'BILASA';
+  if (norm.includes('less fresh')) return 'HINDI GAANONG SARIWA';
+  if (norm.includes('not fresh') || norm.includes('spoiled') || norm.includes('bilasa') || norm.includes('stale')) return 'BILASA';
   return 'SARIWA';
 });
 </script>
@@ -44,24 +44,18 @@ const tagalogName = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.75rem 1.6rem;
-  border-radius: var(--radius-full);
+  padding: 0.85rem 1.45rem 0.85rem 1.15rem;
+  border-radius: 14px;
   border: 1px solid;
   transition: all var(--transition-normal);
 }
 
 .status-indicator-dot {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  box-shadow: 0 0 12px currentColor;
-  animation: pulseDot 2s infinite;
-}
-
-@keyframes pulseDot {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.8; }
+  box-shadow: 0 0 0 4px currentColor;
+  opacity: 0.9;
 }
 
 .badge-texts {
@@ -71,9 +65,9 @@ const tagalogName = computed(() => {
 }
 
 .badge-title {
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
   font-family: var(--font-heading);
 }
 

@@ -9,7 +9,7 @@
           Assess fish specimens from Roxas wet market stalls or review your recent visual freshness classifications.
         </p>
         <div class="welcome-actions">
-          <router-link to="/analyze" class="btn btn-primary btn-lg pulse-glow">
+          <router-link to="/analyze" class="btn btn-primary btn-lg">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
               <circle cx="12" cy="13" r="3"/>
@@ -32,8 +32,8 @@
             <span class="stat-lbl">Fresh Classified</span>
           </div>
           <div class="mini-stat-card">
-            <span class="stat-num text-cyan">92.4%</span>
-            <span class="stat-lbl">CNN Model Accuracy</span>
+            <span class="stat-num text-cyan">89.6%</span>
+            <span class="stat-lbl">Test-set accuracy</span>
           </div>
         </div>
       </div>
@@ -77,12 +77,12 @@
             <span class="cat-hint">Slight flattening, dull red gills, good for frying</span>
           </div>
           <div class="cat-row cat-row-less">
-            <span class="badge badge-less-fresh">Not Fresh</span>
-            <span class="cat-hint">DO NOT cook or eat — discard immediately</span>
+            <span class="badge badge-less-fresh">Less Fresh</span>
+            <span class="cat-hint">Cloudy eyes, dull gills — cook thoroughly</span>
           </div>
           <div class="cat-row cat-row-stale">
-            <span class="badge badge-not-fresh">Spoiled (Bilasa)</span>
-            <span class="cat-hint">Sunken milky eyes, grey gills, do not consume</span>
+            <span class="badge badge-not-fresh">Not Fresh (Bilasa)</span>
+            <span class="cat-hint">Do not purchase or consume</span>
           </div>
         </div>
       </div>

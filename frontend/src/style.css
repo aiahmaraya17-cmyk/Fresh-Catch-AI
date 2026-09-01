@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap');
 
 /* ═══════════════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -6,20 +6,22 @@
 :root {
   --font-heading: 'Outfit', sans-serif;
   --font-body:    'Plus Jakarta Sans', sans-serif;
+  --font-serif:   'Source Serif 4', Georgia, serif;
 
   /* Palette */
-  --bg-dark:        #070d1e;
-  --bg-card:        rgba(15, 25, 50, 0.82);
-  --bg-card-hover:  rgba(22, 36, 70, 0.92);
-  --bg-glass:       rgba(255, 255, 255, 0.05);
-  --border-glass:   rgba(255, 255, 255, 0.12);
-  --border-focus:   rgba(14, 165, 233, 0.5);
+  --bg-dark:        #06101c;
+  --bg-card:        rgba(10, 22, 40, 0.78);
+  --bg-card-hover:  rgba(14, 32, 56, 0.92);
+  --bg-glass:       rgba(255, 255, 255, 0.045);
+  --border-glass:   rgba(148, 197, 222, 0.16);
+  --border-focus:   rgba(56, 189, 248, 0.55);
 
-  --primary:      #0ea5e9;
-  --primary-glow: rgba(14, 165, 233, 0.35);
+  --primary:      #38bdf8;
+  --primary-glow: rgba(56, 189, 248, 0.32);
   --primary-dark: #0284c7;
-  --accent-teal:  #14b8a6;
+  --accent-teal:  #2dd4bf;
   --accent-coral: #fb7185;
+  --accent-gold:  #e2c07a;
 
   /* Freshness */
   --color-fresh:         #10b981;
@@ -30,6 +32,7 @@
   --color-moderate-glow: rgba(245, 158, 11, 0.3);
   --color-less-fresh:    #f97316;
   --color-less-fresh-bg: rgba(249, 115, 22, 0.15);
+  --color-less-fresh-glow: rgba(249, 115, 22, 0.3);
   --color-not-fresh:     #ef4444;
   --color-not-fresh-bg:  rgba(239, 68, 68, 0.15);
   --color-not-fresh-glow:rgba(239, 68, 68, 0.3);
@@ -95,10 +98,12 @@ body {
   min-height: 100vh;
   min-height: 100dvh;        /* dynamic viewport on mobile browsers */
   overflow-x: hidden;
-  line-height: 1.6;
+  line-height: 1.65;
   background-image:
-    radial-gradient(circle at 15% 15%, rgba(14,165,233,0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(20,184,166,0.06) 0%, transparent 45%);
+    radial-gradient(ellipse 80% 50% at 12% -10%, rgba(14, 116, 144, 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 92% 8%, rgba(15, 118, 110, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 80% 100%, rgba(30, 64, 175, 0.12) 0%, transparent 55%),
+    linear-gradient(180deg, #06101c 0%, #071422 100%);
   background-attachment: fixed;
   /* Respect iOS safe areas (notch, home bar) */
   padding-left:  env(safe-area-inset-left);
@@ -178,13 +183,24 @@ button, a, [role="button"] { touch-action: manipulation; }
 /* ═══════════════════════════════════════════════════════════════════
    GLASS CARD
    ═══════════════════════════════════════════════════════════════════ */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+}
+
 .glass-card {
-  background: var(--bg-card);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: linear-gradient(165deg, rgba(18, 36, 62, 0.72) 0%, rgba(8, 18, 36, 0.82) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.04);
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .glass-card:hover { border-color: rgba(255,255,255,0.2); }
@@ -216,8 +232,10 @@ button, a, [role="button"] { touch-action: manipulation; }
 .btn-sm  { padding: 0.45rem 0.9rem; font-size: 0.85rem; min-height: 36px; }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, #0284c7 100%);
-  color: #fff; box-shadow: 0 4px 14px var(--primary-glow);
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  color: #042033;
+  font-weight: 700;
+  box-shadow: 0 4px 18px var(--primary-glow);
 }
 .btn-primary:hover {
   background: linear-gradient(135deg, #38bdf8 0%, var(--primary) 100%);

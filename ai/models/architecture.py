@@ -20,40 +20,65 @@ import os
 import cv2
 import numpy as np
 import joblib
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, VotingClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-from sklearn.calibration import CalibratedClassifierCV
 
 CLASSES = ["Fresh", "Moderately Fresh", "Less Fresh", "Not Fresh"]
 CLASS_CODES = ["fresh", "moderately_fresh", "less_fresh", "not_fresh"]
 
 
+def _clahe_bgr(img):
+    """Lighting-invariant LAB-L equalisation (wet-market photos vary hugely)."""
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8))
+    lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+    return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+
+
+def _region_percentiles(arr, qs=(25, 50, 75)):
+    if arr.size == 0:
+        return [0.0] * len(qs)
+    return [float(np.percentile(arr, q)) for q in qs]
+
+
 class FishFreshnessCNN:
     """
-    Feature extractor + calibrated gradient boosting classifier for
-    fish freshness assessment using QIM-aligned visual features.
+    Feature extractor + ensemble classifier for fish freshness assessment
+    using QIM-aligned visual features with lighting normalisation.
     """
 
-    def __init__(self, model_version="FreshCatch-CNN-v2.0-GBT"):
+    def __init__(self, model_version="FreshCatch-CNN-v3.0-Ensemble"):
         self.version = model_version
         self.classes = CLASSES
-        # GradientBoosting gives better probability calibration than RandomForest
-        # for ordinal class problems (Fresh → Not Fresh is a degradation scale)
-        base = GradientBoostingClassifier(
-            n_estimators=200,
-            max_depth=4,
-            learning_rate=0.08,
-            subsample=0.85,
-            min_samples_split=3,
-            min_samples_leaf=2,
+        # Soft-voting ensemble: histogram GB handles interactions; ExtraTrees
+        # is robust on small tabular sets and neighbouring-class confusion.
+        hgb = HistGradientBoostingClassifier(
+            max_depth=5,
+            learning_rate=0.07,
+            max_iter=280,
+            l2_regularization=0.15,
+            min_samples_leaf=8,
+            max_bins=64,
             random_state=42,
         )
-        # CalibratedClassifierCV with cv='prefit' → wrap after fitting base
-        # We handle calibration in train.py after fitting.
+        extra = ExtraTreesClassifier(
+            n_estimators=280,
+            max_depth=12,
+            min_samples_leaf=2,
+            max_features="sqrt",
+            class_weight="balanced",
+            random_state=42,
+            n_jobs=-1,
+        )
+        ensemble = VotingClassifier(
+            estimators=[("hgb", hgb), ("et", extra)],
+            voting="soft",
+            weights=[1.15, 1.0],
+        )
         self.pipeline = Pipeline([
             ("scaler", StandardScaler()),
-            ("classifier", base),
+            ("classifier", ensemble),
         ])
         self.classifier = self.pipeline
         self.is_trained = False
@@ -216,6 +241,49 @@ class FishFreshnessCNN:
         belly_b = float(np.mean(belly_lab[:, :, 2].astype(np.float32) - 128.0)) / 128.0
 
         features += [belly_L, belly_b]
+
+        # ── 9. Lighting-normalised QIM cues (CLAHE) ─────────────────────────
+        img_eq = _clahe_bgr(img)
+        hsv_eq = cv2.cvtColor(img_eq, cv2.COLOR_BGR2HSV)
+        lab_eq = cv2.cvtColor(img_eq, cv2.COLOR_BGR2LAB)
+        gray_eq = cv2.cvtColor(img_eq, cv2.COLOR_BGR2GRAY)
+
+        center_hsv_eq = hsv_eq[cy1:cy2, cx1:cx2]
+        center_lab_eq = lab_eq[cy1:cy2, cx1:cx2]
+        sat_eq = float(np.median(center_hsv_eq[:, :, 1])) / 255.0
+        val_eq = float(np.mean(center_hsv_eq[:, :, 2])) / 255.0
+        lab_b_eq = float(np.mean(center_lab_eq[:, :, 2].astype(np.float32) - 128.0))
+        lab_a_eq = float(np.mean(center_lab_eq[:, :, 1].astype(np.float32) - 128.0))
+        gill_a_eq = float(np.mean(lab_eq[gy1:gy2, gx1:gx2, 1].astype(np.float32) - 128.0)) / 128.0
+        eye_lap_eq = min(1.0, float(cv2.Laplacian(gray_eq[ey1:ey2, ex1:ex2], cv2.CV_64F).var()) / 3000.0)
+        features += [sat_eq, val_eq, lab_b_eq / 128.0, lab_a_eq / 128.0, gill_a_eq, eye_lap_eq]
+
+        # ── 10. Robust colour percentiles (less sensitive to outliers) ──────
+        sat_p = _region_percentiles(center_hsv[:, :, 1].astype(np.float32) / 255.0)
+        b_p = _region_percentiles((center_lab[:, :, 2].astype(np.float32) - 128.0) / 128.0)
+        a_p = _region_percentiles((center_lab[:, :, 1].astype(np.float32) - 128.0) / 128.0)
+        features += sat_p + b_p + a_p
+
+        # ── 11. Colourfulness + entropy (surface degradation / mucus) ───────
+        b, g, r = cv2.split(img.astype(np.float32))
+        rg = r - g
+        yb = 0.5 * (r + g) - b
+        colorfulness = float(np.sqrt(rg.std() ** 2 + yb.std() ** 2) + 0.3 * np.sqrt(rg.mean() ** 2 + yb.mean() ** 2)) / 255.0
+        hist_g, _ = np.histogram(body_gray, bins=16, range=(0, 256), density=True)
+        hist_g = hist_g[hist_g > 0]
+        entropy = float(-np.sum(hist_g * np.log2(hist_g + 1e-12))) / 4.0
+        features += [colorfulness, entropy]
+
+        # ── 12. Circumferential hue (silver vs yellow) on equalised image ───
+        hue_eq = center_hsv_eq[:, :, 0].astype(np.float32)
+        sat_eq_mask = center_hsv_eq[:, :, 1] > 25
+        if sat_eq_mask.sum() > 10:
+            yellow_eq = float(((hue_eq > 15) & (hue_eq < 50) & sat_eq_mask).sum()) / float(sat_eq_mask.sum())
+            silver_eq = float(((hue_eq > 90) & (hue_eq < 115) & sat_eq_mask).sum()) / float(sat_eq_mask.sum())
+            red_eq = float((((hue_eq < 8) | (hue_eq > 165)) & sat_eq_mask).sum()) / float(sat_eq_mask.sum())
+        else:
+            yellow_eq = silver_eq = red_eq = 0.0
+        features += [yellow_eq, silver_eq, red_eq]
 
         return np.array(features, dtype=np.float32)
 

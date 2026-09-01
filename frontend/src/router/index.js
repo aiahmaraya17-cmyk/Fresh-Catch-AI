@@ -70,27 +70,25 @@ const router = createRouter({
   }
 });
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore();
   if (authStore.token && !authStore.user) {
     await authStore.initialize();
   }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return next({ name: 'Login', query: { redirect: to.fullPath } });
+    return { name: 'Login', query: { redirect: to.fullPath } };
   }
 
   if (to.meta.requiresRoles) {
     if (!authStore.isAuthenticated) {
-      return next({ name: 'Login', query: { redirect: to.fullPath } });
+      return { name: 'Login', query: { redirect: to.fullPath } };
     }
     const role = authStore.user?.role;
     if (!to.meta.requiresRoles.includes(role)) {
-      return next({ name: 'Dashboard' });
+      return { name: 'Dashboard' };
     }
   }
-
-  next();
 });
 
 export default router;

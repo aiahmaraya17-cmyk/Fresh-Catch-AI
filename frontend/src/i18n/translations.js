@@ -38,7 +38,7 @@ export const translations = {
       analyzingText: 'Analyzing Fish Specimen...',
       analyzingStep1: 'Evaluating image clarity, lighting & sharpness...',
       analyzingStep2: 'Extracting anatomical features (eyes, gills, skin)...',
-      analyzingStep3: 'Computing MobileNetV2 CNN class probabilities...',
+      analyzingStep3: 'Scoring QIM features with the trained ensemble...',
       analyzingStep4: 'Synthesizing visual indicators & recommendations...'
     },
     result: {
@@ -55,8 +55,8 @@ export const translations = {
     categories: {
       fresh: 'Fresh',
       moderately_fresh: 'Moderately Fresh',
-      less_fresh: 'Not Fresh',
-      not_fresh: 'Spoiled'
+      less_fresh: 'Less Fresh',
+      not_fresh: 'Not Fresh'
     }
   },
   tl: {
@@ -115,7 +115,7 @@ export const translations = {
     categories: {
       fresh: 'Sariwa',
       moderately_fresh: 'Katamtamang Sariwa',
-      less_fresh: 'Hindi Na Sariwa',
+      less_fresh: 'Hindi Gaanong Sariwa',
       not_fresh: 'Bilasa'
     }
   }

@@ -36,12 +36,13 @@ import sys
 import json
 import numpy as np
 import cv2
+from datetime import datetime, timedelta, timezone
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from ai.preprocessing.quality_checker import check_image_quality
 from ai.models.architecture import FishFreshnessCNN, CLASSES
 
-FRESHNESS_RANK = {"Fresh": 0, "Moderately Fresh": 1, "Not Fresh": 2, "Spoiled": 3}
+FRESHNESS_RANK = {"Fresh": 0, "Moderately Fresh": 1, "Less Fresh": 2, "Not Fresh": 3}
 RANK_FRESHNESS = {v: k for k, v in FRESHNESS_RANK.items()}
 
 # ── Recommendations + food-safety content ─────────────────────────────────────
@@ -77,13 +78,34 @@ RECOMMENDATIONS = {
         "food_safety_warning_tagalog": None,
         "is_safe_to_cook": True,
     },
+    "Less Fresh": {
+        "english": (
+            "The fish shows clear signs of reduced freshness — cloudy sunken eyes, dull brownish gills, "
+            "and a less metallic skin finish. Cook thoroughly and inspect smell and texture before purchase. "
+            "Avoid raw dishes and use prompt cooking methods with strong seasoning."
+        ),
+        "tagalog": (
+            "Makikita ang mga palatandaan ng pagbaba ng kasariwaan — malabo at lubog na mata, "
+            "kupas na kayumangging hasang, at bahagyang nawawalang kintab ng balat. "
+            "Lutuin nang maayos at suriin ang amoy at tekstura bago bumili. "
+            "Iwasan ang mga hilaw na pagkain."
+        ),
+        "food_safety_warning": (
+            "FOOD SAFETY WARNING: This fish has reduced freshness and should not be eaten raw. "
+            "Cook thoroughly and inspect smell, texture, and storage history before consuming."
+        ),
+        "food_safety_warning_tagalog": (
+            "BABALA SA KALIGTASAN: Ang isdang ito ay may pagbaba ng kasariwaan at hindi dapat kainin na hilaw. "
+            "Lutuin nang maayos at suriin ang amoy at tekstura bago kainin."
+        ),
+        "is_safe_to_cook": True,
+    },
     "Not Fresh": {
         "english": (
-            "The fish shows clear signs of spoilage — cloudy sunken eyes, dark brownish gills, "
+            "The fish shows clear signs of staleness or spoilage — deeply sunken cloudy eyes, dark brownish gills, "
             "dull discolored skin, and softened flesh. "
-            "DO NOT cook or eat this fish. Consuming spoiled fish can cause food poisoning "
-            "(Scombroid poisoning, Salmonella, Vibrio). "
-            "Discard immediately and do not purchase."
+            "DO NOT cook or eat this fish. Consuming stale or spoiled fish can cause food poisoning "
+            "(Scombroid poisoning, Salmonella, Vibrio). Discard immediately and do not purchase."
         ),
         "tagalog": (
             "Makikita ang malinaw na tanda ng pagkasira — malabo at lubog na mata, "
@@ -94,7 +116,7 @@ RECOMMENDATIONS = {
         "food_safety_warning": (
             "FOOD SAFETY WARNING: This fish is NOT safe to eat. "
             "DO NOT cook, purchase, or consume this fish. "
-            "Eating spoiled fish can cause severe food poisoning which may require hospitalization. "
+            "Eating stale or spoiled fish can cause severe food poisoning which may require hospitalization. "
             "Discard this fish immediately."
         ),
         "food_safety_warning_tagalog": (
@@ -102,33 +124,6 @@ RECOMMENDATIONS = {
             "HUWAG lutuin, bilhin, o kainin ang isdang ito. "
             "Ang pagkain ng sirang isda ay maaaring magdulot ng matinding food poisoning. "
             "Itapon agad ang isdang ito."
-        ),
-        "is_safe_to_cook": False,
-    },
-    "Spoiled": {
-        "english": (
-            "The fish exhibits strong visual signs of severe spoilage — deeply sunken opaque eyes, "
-            "dark brown or grey slimy gills, heavy yellowish-grey skin discoloration, "
-            "and likely soft, mushy flesh. "
-            "This fish is NOT safe for human consumption and should NOT be cooked or eaten. "
-            "Consuming spoiled fish can cause Scombroid fish poisoning, histamine poisoning, "
-            "or severe bacterial food poisoning (Salmonella, Vibrio, Clostridium). "
-            "DO NOT purchase or consume this fish."
-        ),
-        "tagalog": (
-            "Nagpapakita ng matinding tanda ng pagkasira ang isdang ito — lubog at maulap na mga mata, "
-            "madilim na kayumangging o abong malagkit na hasang, mabigat na pagdiskolorasyon ng balat. "
-            "HINDI ligtas para sa pagkonsumo ng tao ang isdang ito. "
-            "HUWAG bilhin o kainin ang isdang ito."
-        ),
-        "food_safety_warning": (
-            "SERIOUS FOOD SAFETY WARNING: This fish appears SEVERELY SPOILED and is NOT safe to eat. "
-            "Do NOT cook or consume this fish. Eating spoiled fish can cause severe food poisoning "
-            "which may require hospitalization. Discard this fish immediately."
-        ),
-        "food_safety_warning_tagalog": (
-            "SERYOSONG BABALA SA KALIGTASAN: Ang isdang ito ay LUBOS NA BULOK at HINDI ligtas kainin. "
-            "HUWAG lutuin o kainin ang isdang ito. Itapon agad."
         ),
         "is_safe_to_cook": False,
     },
@@ -148,6 +143,45 @@ SAFETY_DISCLAIMER_TAGALOG = (
     "Ang kasariwaan ay nakasalalay din sa amoy, temperatura, at paraan ng pag-imbak. "
     "Palaging suriin ang amoy at lambot ng isda bago bilhin o kainin."
 )
+
+
+def _consumption_guidance(classification):
+    assessed_at = datetime.now(timezone.utc)
+    guidance = {
+        "Fresh": {
+            "window": "Best consumed today; refrigerate at 0-4°C and use within 1 day.",
+            "window_tagalog": "Pinakamainam kainin ngayong araw; ilagay sa 0-4°C na refrigerator at gamitin sa loob ng 1 araw.",
+            "days_until": 1,
+            "safe_to_consume": True,
+        },
+        "Moderately Fresh": {
+            "window": "Cook promptly today; if kept continuously refrigerated, use within 1 day. Do not eat raw.",
+            "window_tagalog": "Lutuin agad ngayong araw; kung tuloy-tuloy na naka-refrigerate, gamitin sa loob ng 1 araw. Huwag kainin nang hilaw.",
+            "days_until": 1,
+            "safe_to_consume": True,
+        },
+        "Less Fresh": {
+            "window": "Cook immediately today only after checking smell and texture. Do not store for later or eat raw.",
+            "window_tagalog": "Lutuin agad ngayong araw lamang matapos suriin ang amoy at tekstura. Huwag itago para sa ibang araw o kainin nang hilaw.",
+            "days_until": 0,
+            "safe_to_consume": True,
+        },
+        "Not Fresh": {
+            "window": "Do not consume. Discard immediately; there is no safe consumption date.",
+            "window_tagalog": "Huwag kainin. Itapon agad; walang ligtas na petsa para kainin ito.",
+            "days_until": None,
+            "safe_to_consume": False,
+        },
+    }[classification]
+    if guidance["days_until"] is None:
+        consume_by = None
+    else:
+        consume_by = (assessed_at + timedelta(days=guidance["days_until"])).date().isoformat()
+    return {
+        **guidance,
+        "assessed_at": assessed_at.isoformat(),
+        "consume_by": consume_by,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -441,9 +475,17 @@ def science_based_classify(image_path):
     # Step 4: Species-colour guard (with maggot protection)
     # Real warm species: gill_a >> body_a (redness concentrated at gills)
     # Maggot infestation: body_a ≈ gill_a (redness spread everywhere)
+    # TROUT/SALMON FIX: Red lateral bands push body_a and body_b high even
+    # when gills are partially obscured by green garnish. Detect this via:
+    #   body_a > 5  (body itself has red-warm pixels from lateral band)
+    # In this case activate warm-species regardless of the gill-body diff,
+    # because the lateral band is a species trait, not spoilage.
     gill_body_a_diff = gill_a - body_a
-    is_warm_species  = ((gill_a > 18) or (body_a > 10)) and (gill_body_a_diff > 8)
-    bb_offset        = 6.0 if is_warm_species else 0.0
+    is_warm_species  = (
+        ((gill_a > 18) or (body_a > 10)) and (gill_body_a_diff > 8)   # normal path
+        or (body_a > 5 and body_b > 8 and body_luster > 0.05)         # lateral-band path
+    )
+    bb_offset = 6.0 if is_warm_species else 0.0
 
     # Dark-backed species guard
     is_dark_species = (body_L < 0.38) and (body_sat < 0.18) and (body_a < 4)
@@ -466,22 +508,28 @@ def science_based_classify(image_path):
     white_bg_contamination = (global_brightness > 0.72) and (body_b >= 5) and (body_b < 12)
 
     # Infestation / severe decomposition detector
-    # FIX 1: Raise surf_std threshold from 0.14→0.20 to avoid triggering on
-    #         fish scales (scales are normal surface texture on fresh fish).
-    # FIX 2: Raise global_lap thresholds: 800→1200 and 600→1000.
-    #         Real market photos of fresh fish regularly have global_lap 400-800
-    #         from scales, wet surfaces, and background detail.
-    # FIX 3: Remove the condition "global_lap > 600 and body_b < 10 and
-    #         global_brightness > 0.65" — this was falsely flagging bright fresh
-    #         fish on white ice trays as infested.
-    redness_spread    = abs(gill_body_a_diff) < 12
+    # FIX: redness_spread should only flag when BOTH zones have high a* AND
+    # the difference is small. A negative diff (body > gill in a*) means the
+    # body has a red lateral band — that's a species trait, not maggots.
+    redness_spread    = (
+        0 <= gill_body_a_diff < 12 and gill_a > 4 and body_a > 4
+    )
     infestation_score = 0.0
     if surf_std > 0.20 and global_lap > 1200:
-        infestation_score += 1.5   # genuinely very high texture + sharpness
+        infestation_score += 1.5
     if surf_std > 0.16 and redness_spread and gill_a > 4:
-        infestation_score += 1.5   # uniform redness spread across image
-    # Removed the "bright + sharp + neutral = infested" condition — too broad
-    infestation_detected = (infestation_score >= 2.5)
+        infestation_score += 1.5
+    severe_surface_decomposition = (
+        surf_std > 0.28 and global_lap > 1800 and body_luster < 0.12
+    )
+    dense_surface_infestation = (
+        infestation_score >= 1.5 and global_lap > 800 and redness_spread
+    )
+    infestation_detected = (
+        infestation_score >= 2.5
+        or severe_surface_decomposition
+        or dense_surface_infestation
+    )
 
     # ── SCORING ───────────────────────────────────────────────────────────
     score   = 0.0
@@ -515,24 +563,32 @@ def science_based_classify(image_path):
     }
 
     # Signal 2: Gill LAB a* — redness
-    # Maggot guard: pink maggots produce high a* but spread uniformly
+    # Maggot guard: pink maggots produce high a* but spread uniformly.
+    # GARNISH FIX: green backgrounds (cabbage, leaves) pull the gill zone's
+    # a* DOWN. If the body_a is high (red lateral band = fresh species marker),
+    # use body_a as a fallback to avoid under-scoring this signal.
     ga = gill_a
+    # Use body_a as a floor when green garnish suppresses gill_a
+    effective_ga = max(ga, body_a * 0.8) if (body_a > 6 and ga < 8) else ga
     if infestation_detected and ga > 0:
         ga_contrib = -0.5
-    elif ga > 14:
+    elif effective_ga > 14:
         ga_contrib = +2.5
-    elif ga > 8:
+    elif effective_ga > 8:
         ga_contrib = +1.5
-    elif ga > 2:
+    elif effective_ga > 2:
         ga_contrib = +0.5
-    elif ga > -3:
+    elif effective_ga > -3:
         ga_contrib = -0.5
     else:
         ga_contrib = -2.0
     score += ga_contrib
     signals["gill_lab_a"] = {
-        "value": round(ga, 2), "contribution": ga_contrib,
-        "note": "maggot-suppressed" if (infestation_detected and ga > 0) else "QIM primary",
+        "value": round(ga, 2),
+        "effective": round(effective_ga, 2),
+        "contribution": ga_contrib,
+        "note": "maggot-suppressed" if (infestation_detected and ga > 0)
+                else ("body_a fallback" if effective_ga != ga else "QIM primary"),
     }
 
     # Signal 3: Body luster
@@ -649,27 +705,33 @@ def science_based_classify(image_path):
         signals["infestation"] = {"value": 0, "contribution": 0.0, "note": "none"}
 
     # ── GRADE MAPPING ─────────────────────────────────────────────────────
-    if score >= 5.5:
+    # When the warm-species guard is active (red/salmon species), apply a
+    # +1.0 bonus to the effective score for grading only — these species
+    # naturally score lower on body_b due to their pigmentation even when
+    # fresh, so the grade boundary is shifted slightly in their favour.
+    grade_score = score + (1.0 if is_warm_species else 0.0)
+
+    if grade_score >= 5.5:
         grade      = "Fresh"
-        confidence = min(0.97, 0.80 + (score - 5.5) * 0.018)
-    elif score >= 3.0:
+        confidence = min(0.97, 0.80 + (grade_score - 5.5) * 0.018)
+    elif grade_score >= 3.0:
         grade      = "Fresh"
-        confidence = min(0.90, 0.70 + (score - 3.0) * 0.040)
-    elif score >= 1.0:
+        confidence = min(0.90, 0.70 + (grade_score - 3.0) * 0.040)
+    elif grade_score >= 1.0:
         grade      = "Moderately Fresh"
-        confidence = min(0.82, 0.65 + (score - 1.0) * 0.043)
-    elif score >= -1.0:
+        confidence = min(0.82, 0.65 + (grade_score - 1.0) * 0.043)
+    elif grade_score >= -1.0:
         grade      = "Moderately Fresh"
-        confidence = min(0.76, 0.60 + abs(score + 1.0) * 0.040)
-    elif score >= -3.5:
+        confidence = min(0.76, 0.60 + abs(grade_score + 1.0) * 0.040)
+    elif grade_score >= -3.5:
+        grade      = "Less Fresh"
+        confidence = min(0.90, 0.65 + (abs(grade_score) - 1.0) * 0.050)
+    elif grade_score >= -7.0:
         grade      = "Not Fresh"
-        confidence = min(0.90, 0.65 + (abs(score) - 1.0) * 0.050)
-    elif score >= -7.0:
-        grade      = "Spoiled"
-        confidence = min(0.95, 0.72 + (abs(score) - 3.5) * 0.038)
+        confidence = min(0.95, 0.72 + (abs(grade_score) - 3.5) * 0.038)
     else:
-        grade      = "Spoiled"
-        confidence = min(0.98, 0.85 + (abs(score) - 7.0) * 0.018)
+        grade      = "Not Fresh"
+        confidence = min(0.98, 0.85 + (abs(grade_score) - 7.0) * 0.018)
 
     confidence = round(confidence, 4)
 
@@ -692,6 +754,8 @@ def science_based_classify(image_path):
             "gill_body_a_diff":       round(gill_body_a_diff, 2),
             "infestation_score":      round(infestation_score, 2),
             "infestation_detected":   infestation_detected,
+            "severe_surface_decomposition": severe_surface_decomposition,
+            "dense_surface_infestation": dense_surface_infestation,
             "white_bg_contamination": white_bg_contamination,
             "bleached":               bleached,
             "is_warm_species":        is_warm_species,
@@ -802,6 +866,46 @@ def _analyze_visual_indicators(img_bgr, fish_mask, classification):
     ]
 
 
+def _score_to_class_probs(score):
+    """Softmax over ordinal class centres derived from the SBRE grade map."""
+    centres = {
+        "Fresh": 4.5,
+        "Moderately Fresh": 1.0,
+        "Less Fresh": -2.2,
+        "Not Fresh": -6.5,
+    }
+    grades = list(centres.keys())
+    logits = np.array([-abs(float(score) - centres[g]) / 2.4 for g in grades], dtype=np.float64)
+    logits -= logits.max()
+    exp = np.exp(logits)
+    probs = exp / (exp.sum() + 1e-12)
+    return {g: float(p) for g, p in zip(grades, probs)}
+
+def _detect_infestation_blobs(img_bgr):
+    """Detect dense, small tan/orange elongated blobs typical of maggots."""
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    orange_mask = cv2.inRange(hsv, np.array([5, 35, 55]), np.array([32, 255, 245]))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    orange_mask = cv2.morphologyEx(orange_mask, cv2.MORPH_OPEN, kernel)
+
+    count = 0
+    total_area = 0.0
+    contours, _ = cv2.findContours(orange_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < 18 or area > 700:
+            continue
+        _, _, width, height = cv2.boundingRect(contour)
+        long_side = max(width, height)
+        short_side = max(1, min(width, height))
+        if long_side / short_side >= 1.45:
+            count += 1
+            total_area += area
+
+    coverage = total_area / float(img_bgr.shape[0] * img_bgr.shape[1])
+    return count, coverage
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MAIN INFERENCE FUNCTION
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -853,6 +957,7 @@ def predict_fish_freshness(
     if img_bgr is None:
         return {"success": False, "error": "Cannot read image file."}
     img_resized = cv2.resize(img_bgr, (400, 300))
+    maggot_blob_count, maggot_blob_coverage = _detect_infestation_blobs(img_resized)
 
     # Step 3: SBRE — Science-Based Rule Engine (primary)
     sbre = science_based_classify(image_path)
@@ -864,49 +969,89 @@ def predict_fish_freshness(
     quality_penalty = quality_result.get("confidence_penalty", 0.0)
     confidence      = round(sbre["confidence"] * (1.0 - quality_penalty), 4)
 
-    # Step 4: GBT model (secondary tiebreaker — only for low-confidence SBRE)
+    # Step 4: Blend the trained ensemble with SBRE. Neighbour-grade averaging
+    # reduces two-class jumps (e.g. Fresh ↔ Not Fresh) under odd lighting.
     gbt_classification = None
     gbt_confidence     = 0.0
     gbt_available      = False
+    model_prob_map     = None
+    all_grades = ["Fresh", "Moderately Fresh", "Less Fresh", "Not Fresh"]
 
-    if sbre["confidence"] < 0.72 and os.path.exists(model_path):
+    if os.path.exists(model_path):
         try:
             cnn = FishFreshnessCNN()
             cnn.load(model_path)
             features    = cnn.extract_features(image_path)
             features_2d = np.array([features])
             probs       = cnn.classifier.predict_proba(features_2d)[0]
-            class_labels = cnn.classifier.classes_
+            class_labels = list(cnn.classifier.classes_)
             top_idx      = int(np.argmax(probs))
-            gbt_classification = class_labels[top_idx]
+            gbt_classification = str(class_labels[top_idx])
             gbt_confidence     = round(float(probs[top_idx]), 4)
             gbt_available      = True
-
-            # Tiebreaker: GBT can shift result by at most ONE grade
-            sbre_rank = FRESHNESS_RANK.get(classification, 0)
-            gbt_rank  = FRESHNESS_RANK.get(gbt_classification, 0)
-            diff      = gbt_rank - sbre_rank
-            if abs(diff) == 1:
-                # Move one step toward GBT result but keep SBRE confidence
-                new_rank   = sbre_rank + (1 if diff > 0 else -1)
-                new_rank   = max(0, min(3, new_rank))
-                classification = RANK_FRESHNESS[new_rank]
-                # Blend confidence: average of SBRE and GBT when they agree direction
-                confidence = round((sbre["confidence"] + gbt_confidence) / 2, 4)
+            model_prob_map = {
+                str(lbl): float(probs[i]) for i, lbl in enumerate(class_labels)
+            }
         except Exception:
             gbt_available = False
 
-    # Step 5: Build class probability dict for display
-    # Build from SBRE score — centre it on the final grade
-    all_grades    = ["Fresh", "Moderately Fresh", "Not Fresh", "Spoiled"]
-    final_rank    = FRESHNESS_RANK[classification]
-    raw_probs     = {}
-    for g in all_grades:
-        r       = FRESHNESS_RANK[g]
-        dist    = abs(r - final_rank)
-        raw_probs[g] = confidence * (0.6 ** dist)
-    total = sum(raw_probs.values())
-    prob_dict = {g: round(raw_probs[g] / total, 4) for g in all_grades}
+    sbre_prob_map = _score_to_class_probs(sbre["score"])
+    heuristic_override = False
+    if gbt_available and model_prob_map:
+        blended = {}
+        for g in all_grades:
+            blended[g] = 0.80 * model_prob_map.get(g, 0.0) + 0.20 * sbre_prob_map.get(g, 0.0)
+        total = sum(blended.values()) or 1.0
+        blended = {g: blended[g] / total for g in all_grades}
+
+        expected_rank = sum(FRESHNESS_RANK[g] * blended[g] for g in all_grades)
+        argmax_grade = max(blended, key=blended.get)
+        argmax_rank = FRESHNESS_RANK[argmax_grade]
+        sbre_rank = FRESHNESS_RANK.get(classification, 0)
+        if abs(argmax_rank - sbre_rank) >= 2:
+            classification = RANK_FRESHNESS[int(np.clip(round(expected_rank), 0, 3))]
+            confidence = round(max(blended[classification], 0.55) * (1.0 - quality_penalty), 4)
+        else:
+            classification = argmax_grade
+            confidence = round(blended[classification] * (1.0 - quality_penalty), 4)
+        prob_dict = {g: round(blended[g], 4) for g in all_grades}
+    else:
+        classification = sbre["classification"]
+        confidence = round(sbre["confidence"] * (1.0 - quality_penalty), 4)
+        final_rank = FRESHNESS_RANK[classification]
+        raw_probs = {}
+        for g in all_grades:
+            dist = abs(FRESHNESS_RANK[g] - final_rank)
+            raw_probs[g] = confidence * (0.6 ** dist)
+        total = sum(raw_probs.values()) or 1.0
+        prob_dict = {g: round(raw_probs[g] / total, 4) for g in all_grades}
+
+    # Visible infestation or severe decomposition is a food-safety finding,
+    # not an ordinary adjacent-grade classification. Never let a model vote
+    # downgrade that finding to a potentially edible category.
+    visible_infestation = maggot_blob_count >= 32 and maggot_blob_coverage >= 0.008
+    sbre_metrics = sbre["metrics"]
+    if visible_infestation or sbre_metrics.get("infestation_detected"):
+        classification = "Not Fresh"
+        confidence = round(max(confidence, 0.96) * (1.0 - quality_penalty), 4)
+        prob_dict = {g: 1.0 if g == "Not Fresh" else 0.0 for g in all_grades}
+        heuristic_override = True
+    else:
+        # A clean silver fish with clear-eye structure and bright gills can
+        # be rejected by the generic model because species colors vary.
+        strong_fresh_visuals = (
+            sbre["classification"] == "Fresh"
+            and sbre_metrics.get("body_lab_b", 99) < 18
+            and sbre_metrics.get("gill_lab_a", -99) > 4
+            and sbre_metrics.get("body_luster", 0) > 0.14
+            and sbre_metrics.get("eye_clarity", 0) > 1.5
+            and sbre_metrics.get("body_lab_L", 0) > 0.45
+        )
+        if classification in ("Less Fresh", "Not Fresh") and strong_fresh_visuals:
+            classification = "Fresh"
+            confidence = round(max(confidence, 0.86) * (1.0 - quality_penalty), 4)
+            prob_dict = {g: 1.0 if g == "Fresh" else 0.0 for g in all_grades}
+            heuristic_override = True
 
     # Step 6: Visual indicator analysis (orientation-aware)
     fish_mask = _segment_fish(img_resized)
@@ -914,6 +1059,7 @@ def predict_fish_freshness(
 
     # Step 7: Recommendation + food-safety lookup
     rec = RECOMMENDATIONS.get(classification, RECOMMENDATIONS["Fresh"])
+    consumption = _consumption_guidance(classification)
 
     response = {
         "success":               True,
@@ -921,11 +1067,12 @@ def predict_fish_freshness(
         "confidence":            confidence,
         "confidence_percentage": round(confidence * 100, 1),
         "class_probabilities":   prob_dict,
-        "modelVersion":          "FreshCatch-SBRE-v6.1",
-        "architecture":          "Science-Based Rule Engine v6 + QIM Colour Analysis",
+        "modelVersion":          "FreshCatch-CNN-v3.0-Ensemble",
+        "architecture":          "QIM ensemble (HGB + ExtraTrees) blended with SBRE v6",
         "visualIndicators":      visual_indicators,
         "recommendation":        rec["english"],
         "recommendation_tagalog": rec["tagalog"],
+        "consumption_guidance":   consumption,
         "is_safe_to_cook":       rec["is_safe_to_cook"],
         "quality_metrics":       quality_result["metrics"],
         "quality_tier":          quality_result.get("quality_tier", "good"),
@@ -934,6 +1081,7 @@ def predict_fish_freshness(
         "sbre_signals":          sbre["signals"],
         "gbt_used":              gbt_available and gbt_classification is not None,
         "gbt_classification":    gbt_classification,
+        "heuristic_override":    heuristic_override,
         "disclaimer":            SAFETY_DISCLAIMER,
         "disclaimer_tagalog":    SAFETY_DISCLAIMER_TAGALOG,
     }

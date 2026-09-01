@@ -36,8 +36,8 @@
         <ul class="footer-links">
           <li><span class="dot fresh-dot"></span> Fresh (Sariwa)</li>
           <li><span class="dot mod-dot"></span> Moderately Fresh (Katamtamang Sariwa)</li>
-          <li><span class="dot less-dot"></span> Not Fresh (Hindi Na Sariwa)</li>
-          <li><span class="dot not-dot"></span> Spoiled (Bilasa)</li>
+          <li><span class="dot less-dot"></span> Less Fresh (Hindi Gaanong Sariwa)</li>
+          <li><span class="dot not-dot"></span> Not Fresh (Bilasa)</li>
         </ul>
       </div>
 

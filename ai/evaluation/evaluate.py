@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import numpy as np
+from datetime import datetime, timezone
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -117,7 +118,7 @@ def evaluate_model(
         },
         "per_class_metrics": per_class,
         "misclassifications": misclassifications,
-        "evaluated_at": "2026-08-19T18:36:00Z"
+        "evaluated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     }
 
     os.makedirs(os.path.dirname(output_eval_path), exist_ok=True)
