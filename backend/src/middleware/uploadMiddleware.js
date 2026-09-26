@@ -2,8 +2,15 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const uploadDir = path.resolve(__dirname, '../../uploads');
-const datasetDir = path.resolve(__dirname, '../../../ai/dataset/raw');
+// Upload locations are configurable so production can store files on a
+// persistent disk (e.g. UPLOAD_DIR=/data/uploads on a Render disk).
+// Defaults keep the original local behaviour when the env vars are unset.
+const uploadDir = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.resolve(__dirname, '../../uploads');
+const datasetDir = process.env.DATASET_DIR
+  ? path.resolve(process.env.DATASET_DIR)
+  : path.resolve(__dirname, '../../../ai/dataset/raw');
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });

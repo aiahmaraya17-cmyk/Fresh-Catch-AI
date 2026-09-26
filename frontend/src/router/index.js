@@ -8,6 +8,8 @@ import HowItWorksView from '../views/public/HowItWorksView.vue';
 import GuideView from '../views/public/GuideView.vue';
 import LoginView from '../views/public/LoginView.vue';
 import RegisterView from '../views/public/RegisterView.vue';
+import StallsView from '../views/public/StallsView.vue';
+import StallDetailView from '../views/public/StallDetailView.vue';
 
 // User / Vendor Views
 import DashboardView from '../views/user/DashboardView.vue';
@@ -16,6 +18,7 @@ import ResultView from '../views/user/ResultView.vue';
 import HistoryView from '../views/user/HistoryView.vue';
 import HistoryDetailView from '../views/user/HistoryDetailView.vue';
 import ProfileView from '../views/user/ProfileView.vue';
+import MyStallView from '../views/user/MyStallView.vue';
 
 // Admin / Researcher Views
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
@@ -37,14 +40,17 @@ const routes = [
   { path: '/guide', name: 'Guide', component: GuideView },
   { path: '/login', name: 'Login', component: LoginView },
   { path: '/register', name: 'Register', component: RegisterView },
+  { path: '/stalls', name: 'Stalls', component: StallsView },
+  { path: '/stalls/:id', name: 'StallDetail', component: StallDetailView },
 
   // User Views
   { path: '/dashboard', name: 'Dashboard', component: DashboardView, meta: { requiresAuth: true } },
-  { path: '/analyze', name: 'Analyze', component: AnalyzeView },
-  { path: '/result/:id', name: 'Result', component: ResultView },
+  { path: '/analyze', name: 'Analyze', component: AnalyzeView, meta: { requiresAuth: true } },
+  { path: '/result/:id', name: 'Result', component: ResultView, meta: { requiresAuth: true } },
   { path: '/history', name: 'History', component: HistoryView, meta: { requiresAuth: true } },
   { path: '/history/:id', name: 'HistoryDetail', component: HistoryDetailView, meta: { requiresAuth: true } },
   { path: '/profile', name: 'Profile', component: ProfileView, meta: { requiresAuth: true } },
+  { path: '/my-stall', name: 'MyStall', component: MyStallView, meta: { requiresRoles: ['vendor', 'admin'] } },
 
   // Admin & Researcher Views
   { path: '/admin', name: 'AdminDashboard', component: AdminDashboardView, meta: { requiresRoles: ['admin', 'researcher'] } },

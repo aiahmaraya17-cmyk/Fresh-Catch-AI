@@ -39,7 +39,7 @@
       <div v-for="(item, idx) in misclassifications" :key="idx" class="glass-card error-card">
         <div class="error-left">
           <div class="error-img-frame">
-            <img :src="item.image_url" alt="Misclassified Fish" class="error-img" />
+            <img :src="mediaUrl(item.image_url)" alt="Misclassified Fish" class="error-img" />
           </div>
           <span class="item-filename">{{ item.filename }}</span>
         </div>
@@ -95,7 +95,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import ApiService from '../../services/api';
+import ApiService, { mediaUrl } from '../../services/api';
 
 const misclassifications = ref([
   {

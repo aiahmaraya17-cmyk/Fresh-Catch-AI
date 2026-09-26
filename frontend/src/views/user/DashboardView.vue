@@ -103,7 +103,7 @@
       <div v-else class="recent-grid">
         <div v-for="scan in recentScans" :key="scan.id" class="scan-card glass-card">
           <div class="scan-img-wrap">
-            <img :src="scan.image_url" alt="Fish scan thumbnail" class="scan-thumb" />
+            <img :src="mediaUrl(scan.image_url)" alt="Fish scan thumbnail" class="scan-thumb" />
             <span class="scan-confidence-badge">{{ Math.round(scan.confidence * 100) }}% AI</span>
           </div>
           <div class="scan-details">
@@ -128,7 +128,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
-import ApiService from '../../services/api';
+import ApiService, { mediaUrl } from '../../services/api';
 
 const authStore = useAuthStore();
 const router = useRouter();

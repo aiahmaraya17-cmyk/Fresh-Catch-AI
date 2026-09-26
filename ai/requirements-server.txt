@@ -1,0 +1,9 @@
+# Server/Docker Python dependencies for FreshCatch AI.
+# Uses opencv-python-HEADLESS (no GUI/X11 libs) so the container stays small
+# and does not require libGL. The code only uses cv2 for image processing and
+# cv2.dnn (ONNX), never any GUI window, so headless is a drop-in replacement.
+numpy>=1.26.0
+opencv-python-headless>=4.9.0
+scikit-learn>=1.4.0
+joblib>=1.3.0
+Pillow>=10.2.0

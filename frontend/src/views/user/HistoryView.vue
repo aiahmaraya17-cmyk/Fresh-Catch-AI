@@ -69,7 +69,7 @@
         <tbody>
           <tr v-for="item in predictions" :key="item.id">
             <td class="col-thumb">
-              <img :src="item.image_url" alt="Fish" class="table-thumb" />
+              <img :src="mediaUrl(item.image_url)" alt="Fish" class="table-thumb" />
             </td>
             <td class="col-species">
               <strong>{{ item.species_local_name || item.species_name || 'Fish Specimen' }}</strong>
@@ -100,7 +100,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import ApiService from '../../services/api';
+import ApiService, { mediaUrl } from '../../services/api';
 
 const predictions = ref([]);
 const speciesOptions = ref([]);

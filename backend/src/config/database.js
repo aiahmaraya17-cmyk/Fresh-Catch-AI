@@ -3,7 +3,16 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
-const dbPath = path.resolve(__dirname, '../../freshcatch.db');
+// DB location is configurable so production can point at a persistent disk
+// (e.g. Render disk mounted at /data → DATABASE_PATH=/data/freshcatch.db).
+// Falls back to the local project file when the env var is unset.
+const dbPath = process.env.DATABASE_PATH
+  ? path.resolve(process.env.DATABASE_PATH)
+  : path.resolve(__dirname, '../../freshcatch.db');
+
+// Make sure the parent directory exists (important for mounted volumes).
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+
 const db = new Database(dbPath);
 
 // Enable WAL mode for optimal concurrent performance
@@ -30,6 +39,19 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS stalls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      market_name TEXT DEFAULT 'Roxas Public Market',
+      section TEXT,
+      description TEXT,
+      contact_number TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS freshness_categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT UNIQUE NOT NULL,
@@ -46,6 +68,7 @@ function initializeDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       species_id INTEGER REFERENCES fish_species(id) ON DELETE SET NULL,
+      stall_id INTEGER REFERENCES stalls(id) ON DELETE SET NULL,
       image_url TEXT NOT NULL,
       classification TEXT NOT NULL,
       confidence REAL NOT NULL,
@@ -118,7 +141,23 @@ function initializeDatabase() {
     );
   `);
 
+  runMigrations();
   seedInitialData();
+}
+
+/**
+ * Lightweight, idempotent migrations for schema changes applied AFTER a table
+ * was first created (CREATE TABLE IF NOT EXISTS won't alter existing tables).
+ * Each guard checks the live column list before running ALTER.
+ */
+function runMigrations() {
+  // Add predictions.stall_id if an older DB predates the vendor-stall feature.
+  const predCols = db.prepare(`PRAGMA table_info(predictions)`).all();
+  const hasStallId = predCols.some(c => c.name === 'stall_id');
+  if (!hasStallId) {
+    db.exec(`ALTER TABLE predictions ADD COLUMN stall_id INTEGER REFERENCES stalls(id) ON DELETE SET NULL`);
+    console.log('Migration: added predictions.stall_id column.');
+  }
 }
 
 function seedInitialData() {
@@ -133,6 +172,26 @@ function seedInitialData() {
     insertUser.run('System Administrator', 'admin@freshcatch.ai', bcrypt.hashSync('admin123', salt), 'admin');
     insertUser.run('Dr. Aris Rodriguez (Fisheries Researcher)', 'researcher@freshcatch.ai', bcrypt.hashSync('research123', salt), 'researcher');
     console.log('Default users seeded successfully.');
+  }
+
+  // 1b. Seed a demo stall owned by the vendor account
+  const stallCount = db.prepare('SELECT COUNT(*) AS count FROM stalls').get().count;
+  if (stallCount === 0) {
+    const vendor = db.prepare("SELECT id FROM users WHERE email = 'vendor@freshcatch.ai'").get();
+    if (vendor) {
+      db.prepare(`
+        INSERT INTO stalls (owner_id, name, market_name, section, description, contact_number)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        vendor.id,
+        "Mang Berting's Fresh Catch",
+        'Roxas Public Market',
+        'Wet Section — Stall 14',
+        'Daily fresh catch from Tablas Strait. Bangus, galunggong, tulingan, and more.',
+        '0917-000-0000'
+      );
+      console.log('Demo vendor stall seeded.');
+    }
   }
 
   // 2. Seed Fish Species (Roxas, Oriental Mindoro)

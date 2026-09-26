@@ -20,7 +20,7 @@
       </div>
 
       <div class="specimen-img-box">
-        <img :src="prediction.image_url" alt="Analyzed Fish" class="specimen-img" />
+        <img :src="mediaUrl(prediction.image_url)" alt="Analyzed Fish" class="specimen-img" />
       </div>
 
       <div class="meta-section">
@@ -55,7 +55,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import ApiService from '../../services/api';
+import ApiService, { mediaUrl } from '../../services/api';
 import FreshnessBadge from '../../components/result/FreshnessBadge.vue';
 import IndicatorList from '../../components/result/IndicatorList.vue';
 import DisclaimerBanner from '../../components/common/DisclaimerBanner.vue';

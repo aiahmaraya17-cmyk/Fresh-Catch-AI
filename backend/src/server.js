@@ -17,6 +17,8 @@ const modelRoutes = require('./routes/modelRoutes');
 const speciesRoutes = require('./routes/speciesRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const recipeRoutes = require('./routes/recipeRoutes');
+const stallRoutes = require('./routes/stallRoutes');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -46,8 +48,25 @@ function startServer(port) {
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+// CORS: allow only the configured front-end origins in production.
+// Set CORS_ORIGINS to a comma-separated list, e.g.
+//   CORS_ORIGINS=https://freshcatch.vercel.app,https://www.freshcatch.app
+// If unset (local dev), all origins are allowed for convenience.
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Allow non-browser clients (curl, health checks, mobile apps) that send no Origin.
+    if (!origin) return callback(null, true);
+    // No allow-list configured → permissive (development default).
+    if (allowedOrigins.length === 0) return callback(null, true);
+    // Otherwise only permit explicitly allowed origins.
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Origin ${origin} is not allowed by CORS policy.`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -57,9 +76,10 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 // Attach User from JWT Token
 app.use(authenticateToken);
 
-// Static file serving for uploads and dataset images
-const uploadsPath = path.resolve(__dirname, '../uploads');
-const datasetPath = path.resolve(__dirname, '../../ai/dataset/raw');
+// Static file serving for uploads and dataset images.
+// Reuse the exact same (env-configurable) directories as the upload middleware
+// so served files and written files always match, including on a persistent disk.
+const { uploadDir: uploadsPath, datasetDir: datasetPath } = require('./middleware/uploadMiddleware');
 
 if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 if (!fs.existsSync(datasetPath)) fs.mkdirSync(datasetPath, { recursive: true });
@@ -75,6 +95,8 @@ app.use('/api', modelRoutes);
 app.use('/api', speciesRoutes);
 app.use('/api', categoryRoutes);
 app.use('/api', reportRoutes);
+app.use('/api', recipeRoutes);
+app.use('/api', stallRoutes);
 
 // Health Check
 app.get('/api/health', (req, res) => {

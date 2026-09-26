@@ -44,12 +44,11 @@
 
         <div class="form-group">
           <label>Password (min 6 characters)</label>
-          <input 
-            v-model="password" 
-            type="password" 
-            class="input-field" 
-            placeholder="••••••••" 
-            required 
+          <PasswordInput
+            v-model="password"
+            placeholder="••••••••"
+            autocomplete="new-password"
+            required
             minlength="6"
           />
         </div>
@@ -72,6 +71,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/authStore';
+import PasswordInput from '../../components/common/PasswordInput.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

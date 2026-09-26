@@ -1,0 +1,37 @@
+# Keep the build context small and the image lean.
+
+# Node / Python installed artifacts (reinstalled inside the image)
+**/node_modules
+.venv
+**/__pycache__
+*.pyc
+
+# Frontend is deployed separately on Vercel — not needed in the backend image
+frontend
+
+# Local SQLite database + WAL files (production uses a persistent disk)
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Locally uploaded prediction images (recreated at runtime on the disk)
+backend/uploads
+
+# Large training/demo dataset images are NOT needed for inference.
+# The trained model + ONNX weights in ai/models/saved ARE kept (not ignored).
+ai/dataset/raw
+
+# VCS, tooling, scratch, tests, docs
+.git
+.gitignore
+.pytest_cache
+scratch
+tests
+*.md
+predict_test.txt
+_t_fresh_silver.jpg
+
+# Env files (provide real values via host env settings)
+**/.env
+**/.env.*
+!**/.env.example

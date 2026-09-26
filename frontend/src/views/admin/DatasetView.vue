@@ -55,7 +55,7 @@
     <div v-else class="dataset-grid">
       <div v-for="img in images" :key="img.id" class="glass-card specimen-card" @click="selectedModalImg = img">
         <div class="specimen-thumb-wrap">
-          <img :src="img.image_url" :alt="img.filename" class="specimen-thumb" />
+          <img :src="mediaUrl(img.image_url)" :alt="img.filename" class="specimen-thumb" />
           <span class="split-pill" :class="'split-' + img.split">{{ img.split }}</span>
         </div>
         <div class="specimen-meta">
@@ -78,7 +78,7 @@
         </div>
         <div class="modal-body">
           <div class="modal-img-wrap">
-            <img :src="selectedModalImg.image_url" alt="High Res Specimen" class="modal-img" />
+            <img :src="mediaUrl(selectedModalImg.image_url)" alt="High Res Specimen" class="modal-img" />
           </div>
           <div class="modal-details-grid">
             <div class="d-item">
@@ -118,7 +118,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import ApiService from '../../services/api';
+import ApiService, { mediaUrl } from '../../services/api';
 
 const images = ref([]);
 const searchQuery = ref('');

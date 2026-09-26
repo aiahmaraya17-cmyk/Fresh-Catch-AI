@@ -531,13 +531,50 @@ def science_based_classify(image_path):
         or dense_surface_infestation
     )
 
+    # ── Dead / decomposed-fish composite detector ─────────────────────────
+    # A spoiled fish that is NOT yellow and has NO maggots (e.g. a grey, dead
+    # fish lying on sand/ice with a collapsed, cloudy, sunken eye and no scale
+    # sheen) previously slipped through: body_b reads neutral so it earned the
+    # +2.5 "not yellowed" bonus, and the individual eye/luster penalties were
+    # too small to overcome it. This composite fires when several independent
+    # decay indicators co-occur, regardless of yellowing:
+    #   • eye_dead    — collapsed/cloudy/sunken eye (very low relative sharpness)
+    #   • no_luster   — dead matte surface, no metallic sheen
+    #   • no_gill_red — gills have lost their fresh redness
+    #   • dull_body   — body is dim/greyed rather than bright & silvery
+    # Two or more strong signs → treat as decomposition and penalise hard so
+    # the grade lands in "Not Fresh", where a rotten fish belongs.
+    # A collapsed / cloudy / sunken eye is the single most reliable sign that
+    # separates a decomposed fish from a fresh silver fish shot on a dark or
+    # neutral background (where luster, gill redness, and body brightness can
+    # ALL read low even though the fish is perfectly fresh). So the dead eye is
+    # made MANDATORY here, and we then require corroborating signs on top.
+    eye_dead     = eye_lap_adj < 0.70          # genuinely blurred/hollow eye
+    no_luster    = body_luster < 0.05          # dead matte surface
+    no_gill_red  = gill_a < 2.0                # gills lost redness
+    dull_body    = (body_L < 0.40 and body_sat < 0.18)  # dim, greyed body
+    corroborating = int(no_luster) + int(no_gill_red) + int(dull_body)
+    decomp_signs = int(eye_dead) + corroborating
+    # Fire ONLY when the eye is dead AND at least two other decay signs agree.
+    # A genuinely-cool body (body_b < 2 → not yellowed at all) is a fresh trait,
+    # so we do not flag decomposition on colour-neutral fish unless the eye is
+    # clearly dead and corroboration is strong.
+    decomposition_detected = (
+        eye_dead
+        and corroborating >= 2
+        and body_luster < 0.06
+        and not is_warm_species
+    )
+
     # ── SCORING ───────────────────────────────────────────────────────────
     score   = 0.0
     signals = {}
 
     # Signal 1: Body LAB b* — yellowing
     bb = body_b - bb_offset
-    if bleached or infestation_detected:
+    if bleached or infestation_detected or decomposition_detected:
+        # A decomposed grey fish reads neutral on b*; do NOT reward that as
+        # "not yellowed" — the fish is spoiled for other reasons.
         b_contrib = 0.0
     elif bb < 8:
         # white_bg_contamination only blocks the bonus when body_b is in the
@@ -704,6 +741,21 @@ def science_based_classify(image_path):
     else:
         signals["infestation"] = {"value": 0, "contribution": 0.0, "note": "none"}
 
+    # Signal 10: Dead / decomposed fish composite
+    # Scaled penalty: the more decay signs co-occur, the deeper the penalty,
+    # ensuring the total score drops into the "Not Fresh" band (< -3.5) for an
+    # obviously spoiled fish even when it is not yellow and has no maggots.
+    if decomposition_detected:
+        decomp_contrib = -3.5 - 1.0 * (decomp_signs - 3)   # -3.5 (3 signs) / -4.5 (4 signs)
+        score += decomp_contrib
+        signals["decomposition"] = {
+            "value": decomp_signs, "contribution": decomp_contrib,
+            "note": (f"decomposition: eye_dead={eye_dead} no_luster={no_luster} "
+                     f"no_gill_red={no_gill_red} dull_body={dull_body}"),
+        }
+    else:
+        signals["decomposition"] = {"value": 0, "contribution": 0.0, "note": "none"}
+
     # ── GRADE MAPPING ─────────────────────────────────────────────────────
     # When the warm-species guard is active (red/salmon species), apply a
     # +1.0 bonus to the effective score for grading only — these species
@@ -754,6 +806,8 @@ def science_based_classify(image_path):
             "gill_body_a_diff":       round(gill_body_a_diff, 2),
             "infestation_score":      round(infestation_score, 2),
             "infestation_detected":   infestation_detected,
+            "decomposition_detected": decomposition_detected,
+            "decomposition_signs":    decomp_signs,
             "severe_surface_decomposition": severe_surface_decomposition,
             "dense_surface_infestation": dense_surface_infestation,
             "white_bg_contamination": white_bg_contamination,
@@ -1034,6 +1088,14 @@ def predict_fish_freshness(
     if visible_infestation or sbre_metrics.get("infestation_detected"):
         classification = "Not Fresh"
         confidence = round(max(confidence, 0.96) * (1.0 - quality_penalty), 4)
+        prob_dict = {g: 1.0 if g == "Not Fresh" else 0.0 for g in all_grades}
+        heuristic_override = True
+    elif sbre_metrics.get("decomposition_detected"):
+        # Multiple decay signs (collapsed/cloudy eye + no luster + no gill
+        # redness + dull body) are a spoilage finding. Don't let the trained
+        # model upgrade a decomposed fish to an edible grade.
+        classification = "Not Fresh"
+        confidence = round(max(confidence, 0.90) * (1.0 - quality_penalty), 4)
         prob_dict = {g: 1.0 if g == "Not Fresh" else 0.0 for g in all_grades}
         heuristic_override = True
     else:

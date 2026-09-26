@@ -4,8 +4,8 @@ const predictionController = require('../controllers/predictionController');
 const { uploadPrediction } = require('../middleware/uploadMiddleware');
 const { requireAuth } = require('../middleware/authMiddleware');
 
-// Public or Authenticated Predict
-router.post('/predict', uploadPrediction.single('image'), predictionController.predict);
+// Authenticated Predict — users must be logged in to scan a fish.
+router.post('/predict', requireAuth, uploadPrediction.single('image'), predictionController.predict);
 
 // Predictions History & Details
 router.get('/predictions', requireAuth, predictionController.getHistory);

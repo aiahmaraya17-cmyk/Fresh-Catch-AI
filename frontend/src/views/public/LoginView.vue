@@ -34,12 +34,11 @@
 
         <div class="form-group">
           <label>Password</label>
-          <input 
-            v-model="password" 
-            type="password" 
-            class="input-field" 
-            placeholder="••••••••" 
-            required 
+          <PasswordInput
+            v-model="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
           />
         </div>
 
@@ -83,6 +82,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import PasswordInput from '../../components/common/PasswordInput.vue';
 import { useAuthStore } from '../../stores/authStore';
 
 const router = useRouter();

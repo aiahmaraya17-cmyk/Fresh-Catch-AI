@@ -41,7 +41,11 @@
 
         <div class="form-group">
           <label>Update Password (Optional)</label>
-          <input v-model="password" type="password" class="input-field" placeholder="Leave blank to keep current password" />
+          <PasswordInput
+            v-model="password"
+            placeholder="Leave blank to keep current password"
+            autocomplete="new-password"
+          />
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg" :disabled="isLoading">
@@ -57,6 +61,7 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/authStore';
 import ApiService from '../../services/api';
+import PasswordInput from '../../components/common/PasswordInput.vue';
 
 const authStore = useAuthStore();
 const name = ref(authStore.userName);

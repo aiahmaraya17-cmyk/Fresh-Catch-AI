@@ -16,7 +16,7 @@
       <div class="left-col">
         <div class="glass-card image-card">
           <div class="img-frame">
-            <img :src="resultData.imageUrl || defaultSampleImage" alt="Analyzed Fish" class="analyzed-img" />
+            <img :src="mediaUrl(resultData.imageUrl || defaultSampleImage)" alt="Analyzed Fish" class="analyzed-img" />
           </div>
           <div class="img-caption">
             <span class="caption-date">Analyzed on {{ formatTimestamp(resultData.createdAt) }}</span>
@@ -107,6 +107,12 @@
         <!-- Detected Visual Indicators -->
         <IndicatorList :indicators="resultData.visualIndicators || resultData.visual_indicators" />
 
+        <!-- Live Recipe Suggestions (TheMealDB) — freshness-filtered -->
+        <RecipeSuggestions
+          :classification="resultData.classification"
+          :species="resultData.species_name || resultData.species_local_name || ''"
+        />
+
         <!-- Prominent Safety Disclaimer Banner -->
         <DisclaimerBanner />
 
@@ -130,8 +136,9 @@ import { useRoute } from 'vue-router';
 import FreshnessBadge from '../../components/result/FreshnessBadge.vue';
 import ConfidenceGauge from '../../components/result/ConfidenceGauge.vue';
 import IndicatorList from '../../components/result/IndicatorList.vue';
+import RecipeSuggestions from '../../components/result/RecipeSuggestions.vue';
 import DisclaimerBanner from '../../components/common/DisclaimerBanner.vue';
-import ApiService from '../../services/api';
+import ApiService, { mediaUrl } from '../../services/api';
 import confetti from 'canvas-confetti';
 
 const route = useRoute();
@@ -286,17 +293,22 @@ onMounted(async () => {
 
 .img-frame {
   width: 100%;
-  aspect-ratio: 4/3;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: #000;
+  background: #0a0f1e;
   margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 480px;
 }
 
 .analyzed-img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 480px;
+  object-fit: contain;
+  display: block;
 }
 
 .img-caption {

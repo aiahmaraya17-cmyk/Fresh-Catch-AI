@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
 const PythonBridgeService = require('../services/pythonBridgeService');
+const { uploadDir } = require('../middleware/uploadMiddleware');
 
 exports.predict = async (req, res) => {
   try {
@@ -22,7 +23,6 @@ exports.predict = async (req, res) => {
       // Handle base64 camera upload
       const base64Data = req.body.image_data.replace(/^data:image\/\w+;base64,/, '');
       const filename = `camera_${Date.now()}_${Math.round(Math.random() * 1e9)}.jpg`;
-      const uploadDir = path.resolve(__dirname, '../../uploads');
       imagePath = path.join(uploadDir, filename);
       fs.writeFileSync(imagePath, Buffer.from(base64Data, 'base64'));
       imageUrl = `/uploads/${filename}`;
@@ -31,13 +31,18 @@ exports.predict = async (req, res) => {
     // Step 1: Run Inference through Python CNN engine
     const inferenceResult = await PythonBridgeService.runInference(imagePath);
 
-    // If quality check rejected image
+    // If quality check rejected image (poor quality OR not a fish)
     if (!inferenceResult.success && inferenceResult.quality_check && !inferenceResult.quality_check.is_acceptable) {
+      const qc = inferenceResult.quality_check;
+      const isNotFish = qc.not_fish === true || qc.quality_tier === 'not_fish';
       return res.status(422).json({
         success: false,
         quality_rejected: true,
-        quality_check: inferenceResult.quality_check,
-        message: inferenceResult.recommendation || 'Image quality is insufficient for reliable visual classification.',
+        not_fish: isNotFish,
+        quality_check: qc,
+        message: (isNotFish
+          ? (qc.recommendation || 'The uploaded image does not appear to contain a fish. Please upload a clear photo of a fish.')
+          : (inferenceResult.recommendation || qc.recommendation || 'Image quality is insufficient for reliable visual classification.')),
         disclaimer: inferenceResult.disclaimer
       });
     }
@@ -63,15 +68,28 @@ exports.predict = async (req, res) => {
 
     // Step 2: Store Prediction Record in Database
     const userId = req.user ? req.user.id : null;
+
+    // Determine stall attribution for this scan.
+    // Priority: explicit stall_id in the request → else, if the scanner is a
+    // vendor, auto-attribute to their own stall. Consumers leave it NULL.
+    let stallId = null;
+    if (req.body.stall_id) {
+      stallId = parseInt(req.body.stall_id, 10) || null;
+    } else if (req.user && (req.user.role === 'vendor' || req.user.role === 'admin')) {
+      const ownStall = db.prepare('SELECT id FROM stalls WHERE owner_id = ?').get(req.user.id);
+      if (ownStall) stallId = ownStall.id;
+    }
+
     const stmt = db.prepare(`
       INSERT INTO predictions 
-      (user_id, species_id, image_url, classification, confidence, class_probabilities, visual_indicators, recommendation, recommendation_tagalog, quality_metrics, model_version)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (user_id, species_id, stall_id, image_url, classification, confidence, class_probabilities, visual_indicators, recommendation, recommendation_tagalog, quality_metrics, model_version)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const info = stmt.run(
       userId,
       speciesId,
+      stallId,
       imageUrl,
       inferenceResult.classification,
       inferenceResult.confidence,
@@ -86,6 +104,7 @@ exports.predict = async (req, res) => {
     res.json({
       success: true,
       predictionId: info.lastInsertRowid,
+      stallId,
       imageUrl,
       classification: inferenceResult.classification,
       confidence: inferenceResult.confidence,

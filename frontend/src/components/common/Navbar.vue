@@ -30,8 +30,12 @@
         <li><router-link to="/guide"         class="nav-link" active-class="active">{{ t('nav.guide') }}</router-link></li>
         <li><router-link to="/how-it-works"  class="nav-link" active-class="active">{{ t('nav.howItWorks') }}</router-link></li>
         <li><router-link to="/about"         class="nav-link" active-class="active">{{ t('nav.about') }}</router-link></li>
+        <li><router-link to="/stalls"        class="nav-link" active-class="active">Stalls</router-link></li>
         <li v-if="authStore.isAuthenticated">
           <router-link to="/history" class="nav-link" active-class="active">{{ t('nav.history') }}</router-link>
+        </li>
+        <li v-if="authStore.isVendor">
+          <router-link to="/my-stall" class="nav-link" active-class="active">My Stall</router-link>
         </li>
         <li v-if="authStore.isResearcher">
           <router-link to="/admin" class="nav-link admin-nav-pill" active-class="active">{{ t('nav.admin') }}</router-link>
@@ -64,8 +68,8 @@
         </template>
 
         <template v-else>
-          <router-link to="/login"   class="btn btn-secondary btn-sm">{{ t('nav.login') }}</router-link>
-          <router-link to="/analyze" class="btn btn-primary btn-sm">{{ t('nav.analyze') }}</router-link>
+          <router-link to="/login"    class="btn btn-secondary btn-sm">{{ t('nav.login') }}</router-link>
+          <router-link to="/register" class="btn btn-primary btn-sm">{{ t('nav.register') }}</router-link>
         </template>
       </div>
 
@@ -155,6 +159,16 @@
             {{ t('nav.about') }}
           </router-link>
 
+          <router-link to="/stalls"       class="drawer-link" @click="closeDrawer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M9 21v-6h6v6"/></svg>
+            Stalls
+          </router-link>
+
+          <router-link v-if="authStore.isVendor" to="/my-stall" class="drawer-link" @click="closeDrawer">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><circle cx="12" cy="15" r="2"/></svg>
+            My Stall
+          </router-link>
+
           <router-link v-if="authStore.isAuthenticated" to="/history" class="drawer-link" @click="closeDrawer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             {{ t('nav.history') }}
@@ -180,8 +194,8 @@
             </button>
           </template>
           <template v-else>
-            <router-link to="/login"   class="btn btn-secondary w-full" @click="closeDrawer">{{ t('nav.login') }}</router-link>
-            <router-link to="/analyze" class="btn btn-primary  w-full" @click="closeDrawer">{{ t('nav.analyze') }}</router-link>
+            <router-link to="/login"    class="btn btn-secondary w-full" @click="closeDrawer">{{ t('nav.login') }}</router-link>
+            <router-link to="/register" class="btn btn-primary  w-full" @click="closeDrawer">{{ t('nav.register') }}</router-link>
           </template>
         </div>
 

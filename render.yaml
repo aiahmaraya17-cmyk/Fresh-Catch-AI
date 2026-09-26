@@ -1,0 +1,42 @@
+# FreshCatch AI — Render Blueprint (backend + Python AI)
+# ------------------------------------------------------
+# Deploys the Express API and its Python inference engine as one Docker service,
+# with a persistent disk for the SQLite database and uploaded images.
+# The frontend is deployed separately on Vercel.
+#
+# To use: push this repo to GitHub, then in Render choose
+# "New +" → "Blueprint" and select this repository.
+
+services:
+  - type: web
+    name: freshcatch-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free            # upgrade to "starter" if the free tier sleeps/times out
+    region: singapore     # closest region to the Philippines
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    # Persistent disk so the database and uploaded photos survive restarts.
+    disk:
+      name: freshcatch-data
+      mountPath: /data
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT automatically; the server reads process.env.PORT.
+      - key: JWT_SECRET
+        generateValue: true          # Render generates a strong random secret
+      - key: PYTHON_PATH
+        value: /opt/venv/bin/python
+      - key: DATABASE_PATH
+        value: /data/freshcatch.db
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      # Set this AFTER the Vercel frontend URL is known (no trailing slash).
+      # Example: https://freshcatch-ai.vercel.app
+      - key: CORS_ORIGINS
+        sync: false                  # prompt for the value in the dashboard

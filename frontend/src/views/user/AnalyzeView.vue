@@ -45,20 +45,25 @@
       <Transition name="fade-up">
         <div v-if="qualityRejection" class="quality-rejection-card">
           <div class="rejection-icon-wrap">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber">
+            <!-- Fish icon for "not a fish"; warning triangle for quality issues -->
+            <svg v-if="qualityRejection.notFish" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber">
+              <path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.46-3.44 6-7 6s-7.56-2.54-8.5-6Z"/>
+              <path d="M18 12h.01"/><path d="M2 12s2-4 4-4M2 12s2 4 4 4"/>
+            </svg>
+            <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-amber">
               <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
           <div class="rejection-body">
-            <h4>Image Quality Insufficient</h4>
+            <h4>{{ qualityRejection.notFish ? 'No Fish Detected' : 'Image Quality Insufficient' }}</h4>
             <p>{{ qualityRejection.message }}</p>
             <ul v-if="qualityRejection.reasons?.length" class="rejection-reasons">
               <li v-for="(r, i) in qualityRejection.reasons" :key="i">{{ r }}</li>
             </ul>
           </div>
           <button @click="resetCapture" class="btn btn-primary btn-sm rejection-retry-btn">
-            Try Again
+            {{ qualityRejection.notFish ? 'Upload a Fish Photo' : 'Try Again' }}
           </button>
         </div>
       </Transition>
@@ -270,7 +275,7 @@
         <div class="result-modal-grid">
           <div class="result-image-panel">
             <div class="result-image-frame">
-              <img :src="analysisResult.imageUrl || defaultSampleImage" :alt="'Analyzed fish result'" class="result-modal-image" />
+              <img :src="mediaUrl(analysisResult.imageUrl || defaultSampleImage)" :alt="'Analyzed fish result'" class="result-modal-image" />
             </div>
 
             <div v-if="analysisResult.quality_metrics && Object.keys(analysisResult.quality_metrics).length" class="result-metrics-box">
@@ -351,6 +356,12 @@
 
             <IndicatorList :indicators="analysisResult.visualIndicators || analysisResult.visual_indicators" />
 
+            <!-- Live Recipe Suggestions (TheMealDB) — freshness-filtered -->
+            <RecipeSuggestions
+              :classification="analysisResult.classification || ''"
+              :species="analysisResult.species_name || analysisResult.species_local_name || selectedSpecies || ''"
+            />
+
             <DisclaimerBanner />
 
             <div class="result-actions">
@@ -374,8 +385,9 @@ import { translations } from '../../i18n/translations';
 import FreshnessBadge from '../../components/result/FreshnessBadge.vue';
 import ConfidenceGauge from '../../components/result/ConfidenceGauge.vue';
 import IndicatorList from '../../components/result/IndicatorList.vue';
+import RecipeSuggestions from '../../components/result/RecipeSuggestions.vue';
 import DisclaimerBanner from '../../components/common/DisclaimerBanner.vue';
-import ApiService from '../../services/api';
+import ApiService, { mediaUrl } from '../../services/api';
 
 const router    = useRouter();
 const route     = useRoute();
@@ -679,27 +691,28 @@ async function submitAnalysis() {
       qualityRejection.value = {
         message: res.message || 'Analysis failed. Please try another image.',
         reasons: res.quality_check?.reasons || [],
+        notFish: res.not_fish === true || res.quality_check?.not_fish === true,
       };
     }
   } catch (err) {
     stopTicker();
     isAnalyzing.value = false;
 
-    // Parse structured quality rejection from the API error
+    // Prefer the structured body attached by ApiService, fall back to message.
     let message = 'Analysis failed. Please try another image.';
     let reasons = [];
+    let notFish = false;
 
-    try {
-      // Some API layers serialise the error body
-      const body = JSON.parse(err.message || '{}');
+    const body = err.body || null;
+    if (body) {
       if (body.message) message = body.message;
       if (body.quality_check?.reasons) reasons = body.quality_check.reasons;
-      if (body.disclaimer) reasons.push(body.disclaimer.split('.')[0] + '.');
-    } catch {
+      notFish = body.not_fish === true || body.quality_check?.not_fish === true;
+    } else {
       message = err.message || message;
     }
 
-    qualityRejection.value = { message, reasons };
+    qualityRejection.value = { message, reasons, notFish };
   }
 }
 
@@ -829,6 +842,27 @@ onUnmounted(() => {
 }
 .rejection-retry-btn { flex-shrink: 0; align-self: center; }
 
+/* On phones, stack the rejection card so the text gets full width and the
+   button sits full-width beneath it (instead of squeezing the text sideways). */
+@media (max-width: 560px) {
+  .quality-rejection-card {
+    flex-wrap: wrap;
+    gap: 0.6rem 0.75rem;
+  }
+  .rejection-body {
+    flex: 1 1 100%;
+    order: 2;               /* text below the icon+heading row */
+  }
+  .rejection-icon-wrap { order: 1; }
+  .rejection-retry-btn {
+    order: 3;
+    flex: 1 1 100%;
+    width: 100%;
+    align-self: stretch;
+    margin-top: 0.25rem;
+  }
+}
+
 .camera-error-icon { color: #f87171; margin-bottom: 0.5rem; }
 .camera-error-body h4 { color: #fca5a5; margin-bottom: 0.3rem; }
 .camera-error-body p  { font-size: 0.85rem; color: #fecaca; }
@@ -851,10 +885,15 @@ onUnmounted(() => {
   .preview-container { max-height: 420px; }
 }
 
-.camera-video,
+.camera-video {
+  width: 100%; height: 100%;
+  object-fit: cover;      /* live feed fills the viewfinder for framing */
+  display: block;
+}
+
 .preview-image {
   width: 100%; height: 100%;
-  object-fit: cover;
+  object-fit: contain;    /* captured/uploaded image shown in full, no crop */
   display: block;
 }
 
