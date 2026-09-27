@@ -1052,22 +1052,42 @@ def predict_fish_freshness(
     sbre_prob_map = _score_to_class_probs(sbre["score"])
     heuristic_override = False
     if gbt_available and model_prob_map:
+        # The trained tabular model does not generalise reliably to real market
+        # photos (it was fit on a small/synthetic set and skews toward the lower
+        # grades). The Science-Based Rule Engine (SBRE) — which measures eye
+        # clarity, gill redness, body colour, luster, etc. — is the trustworthy
+        # signal, so it is the PRIMARY vote. The model is only a light nudge and
+        # is NEVER allowed to move the result more than one grade away from the
+        # SBRE, which prevents the old "everything collapses to Less Fresh"
+        # behaviour that happened when the two disagreed strongly.
+        SBRE_WEIGHT = 0.75
+        GBT_WEIGHT  = 0.25
+        sbre_rank = FRESHNESS_RANK.get(classification, 0)
+
+        # Clamp the model's probability mass to grades within ±1 of the SBRE
+        # grade before blending, so a wildly-off model prediction cannot drag
+        # the outcome two grades away.
+        clamped_model = {}
+        for g in all_grades:
+            if abs(FRESHNESS_RANK[g] - sbre_rank) <= 1:
+                clamped_model[g] = model_prob_map.get(g, 0.0)
+            else:
+                clamped_model[g] = 0.0
+        cm_total = sum(clamped_model.values())
+        if cm_total > 0:
+            clamped_model = {g: clamped_model[g] / cm_total for g in all_grades}
+        else:
+            # Model gave no mass near the SBRE grade → ignore it entirely.
+            clamped_model = dict(sbre_prob_map)
+
         blended = {}
         for g in all_grades:
-            blended[g] = 0.80 * model_prob_map.get(g, 0.0) + 0.20 * sbre_prob_map.get(g, 0.0)
+            blended[g] = SBRE_WEIGHT * sbre_prob_map.get(g, 0.0) + GBT_WEIGHT * clamped_model.get(g, 0.0)
         total = sum(blended.values()) or 1.0
         blended = {g: blended[g] / total for g in all_grades}
 
-        expected_rank = sum(FRESHNESS_RANK[g] * blended[g] for g in all_grades)
-        argmax_grade = max(blended, key=blended.get)
-        argmax_rank = FRESHNESS_RANK[argmax_grade]
-        sbre_rank = FRESHNESS_RANK.get(classification, 0)
-        if abs(argmax_rank - sbre_rank) >= 2:
-            classification = RANK_FRESHNESS[int(np.clip(round(expected_rank), 0, 3))]
-            confidence = round(max(blended[classification], 0.55) * (1.0 - quality_penalty), 4)
-        else:
-            classification = argmax_grade
-            confidence = round(blended[classification] * (1.0 - quality_penalty), 4)
+        classification = max(blended, key=blended.get)
+        confidence = round(blended[classification] * (1.0 - quality_penalty), 4)
         prob_dict = {g: round(blended[g], 4) for g in all_grades}
     else:
         classification = sbre["classification"]
@@ -1083,8 +1103,20 @@ def predict_fish_freshness(
     # Visible infestation or severe decomposition is a food-safety finding,
     # not an ordinary adjacent-grade classification. Never let a model vote
     # downgrade that finding to a potentially edible category.
-    visible_infestation = maggot_blob_count >= 32 and maggot_blob_coverage >= 0.008
     sbre_metrics = sbre["metrics"]
+    # Visible-maggot detection is prone to false positives on legitimate market
+    # photos: yellow fins, tan tails, and dark gaps between piled fish get
+    # counted as "blobs". A genuinely maggot-infested fish is also DECOMPOSED,
+    # so the SBRE score is strongly negative. We therefore require BOTH a dense
+    # blob signal AND corroborating spoilage from the SBRE (score < -1) before
+    # forcing a food-safety "Not Fresh". This prevents a tray of fresh fish from
+    # being condemned just because of natural markings.
+    sbre_score = sbre.get("score", 0.0)
+    visible_infestation = (
+        maggot_blob_count >= 40
+        and maggot_blob_coverage >= 0.02
+        and sbre_score < -1.0
+    )
     if visible_infestation or sbre_metrics.get("infestation_detected"):
         classification = "Not Fresh"
         confidence = round(max(confidence, 0.96) * (1.0 - quality_penalty), 4)
