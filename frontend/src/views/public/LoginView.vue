@@ -48,29 +48,6 @@
         </button>
       </form>
 
-      <!-- Quick Demo Account Switcher -->
-      <div class="demo-accounts-box">
-        <span class="demo-title">Demo accounts</span>
-        <div class="demo-grid">
-          <button @click="fillDemo('consumer')" class="demo-btn">
-            <span class="demo-role">Consumer</span>
-            <span class="demo-email">Elena Santos</span>
-          </button>
-          <button @click="fillDemo('vendor')" class="demo-btn">
-            <span class="demo-role">Fish Vendor</span>
-            <span class="demo-email">Mang Berting</span>
-          </button>
-          <button @click="fillDemo('admin')" class="demo-btn">
-            <span class="demo-role">System Admin</span>
-            <span class="demo-email">Admin Portal</span>
-          </button>
-          <button @click="fillDemo('researcher')" class="demo-btn">
-            <span class="demo-role">Researcher</span>
-            <span class="demo-email">Dr. Rodriguez</span>
-          </button>
-        </div>
-      </div>
-
       <div class="auth-footer text-center">
         <span>Don't have an account yet? </span>
         <router-link to="/register" class="text-cyan font-bold">Sign Up</router-link>
@@ -89,26 +66,10 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 
-const email = ref('consumer@freshcatch.ai');
-const password = ref('password123');
+const email = ref('');
+const password = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
-
-function fillDemo(role) {
-  if (role === 'consumer') {
-    email.value = 'consumer@freshcatch.ai';
-    password.value = 'password123';
-  } else if (role === 'vendor') {
-    email.value = 'vendor@freshcatch.ai';
-    password.value = 'password123';
-  } else if (role === 'admin') {
-    email.value = 'admin@freshcatch.ai';
-    password.value = 'admin123';
-  } else if (role === 'researcher') {
-    email.value = 'researcher@freshcatch.ai';
-    password.value = 'research123';
-  }
-}
 
 async function handleLogin() {
   isLoading.value = true;

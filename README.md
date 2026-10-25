@@ -86,16 +86,14 @@ python ai/evaluation/environmental_benchmarks.py  # benchmark
 
 ---
 
-## Demo Accounts
+## Authentication
 
-The database auto-seeds four demo accounts on first run:
-
-| Role | Email | Password |
-|---|---|---|
-| Consumer | consumer@freshcatch.ai | password123 |
-| Vendor | vendor@freshcatch.ai | password123 |
-| Admin | admin@freshcatch.ai | admin123 |
-| Researcher | researcher@freshcatch.ai | research123 |
+Sign-in and registration use Firebase Authentication. New users receive the
+`consumer` role, and their profile is stored in Firestore. Set the Firebase
+client and Admin SDK environment variables described in [DEPLOYMENT.md](DEPLOYMENT.md)
+before using authentication. The SQLite seed records are retained for sample
+stall and operational data; their former demo passwords are no longer login
+credentials.
 
 ---
 

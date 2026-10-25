@@ -36,7 +36,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # ── Node dependencies (cached layer) ────────────────────────────────────────
 COPY backend/package.json backend/package-lock.json ./backend/
-RUN cd backend && npm ci --omit=dev
+RUN cd backend && npm install --omit=dev
 
 # ── Application code ─────────────────────────────────────────────────────────
 COPY backend ./backend

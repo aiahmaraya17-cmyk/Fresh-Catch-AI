@@ -141,6 +141,12 @@ function initializeDatabase() {
     );
   `);
 
+  const userColumns = db.prepare('PRAGMA table_info(users)').all();
+  if (!userColumns.some((column) => column.name === 'firebase_uid')) {
+    db.exec('ALTER TABLE users ADD COLUMN firebase_uid TEXT');
+  }
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_idx ON users(firebase_uid) WHERE firebase_uid IS NOT NULL');
+
   runMigrations();
   seedInitialData();
 }

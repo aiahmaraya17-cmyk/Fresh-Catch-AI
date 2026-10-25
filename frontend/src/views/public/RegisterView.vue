@@ -3,7 +3,7 @@
     <div class="glass-card auth-card">
       <div class="auth-header text-center">
         <h2>Create FreshCatch AI Account</h2>
-        <p class="subtitle">Join as a market consumer, fish vendor, or researcher</p>
+        <p class="subtitle">Create an account to save scans and manage your FreshCatch profile</p>
       </div>
 
       <div v-if="errorMessage" class="error-alert">
@@ -31,15 +31,6 @@
             placeholder="e.g. maria@example.com" 
             required 
           />
-        </div>
-
-        <div class="form-group">
-          <label>Role</label>
-          <select v-model="role" class="input-field">
-            <option value="consumer">Fish Consumer / Buyer</option>
-            <option value="vendor">Fish Vendor / Stallholder</option>
-            <option value="researcher">Fisheries Researcher / Inspector</option>
-          </select>
         </div>
 
         <div class="form-group">
@@ -79,7 +70,6 @@ const authStore = useAuthStore();
 const name = ref('');
 const email = ref('');
 const password = ref('');
-const role = ref('consumer');
 const isLoading = ref(false);
 const errorMessage = ref('');
 
@@ -87,7 +77,7 @@ async function handleRegister() {
   isLoading.value = true;
   errorMessage.value = '';
 
-  const res = await authStore.register(name.value, email.value, password.value, role.value);
+  const res = await authStore.register(name.value, email.value, password.value);
   isLoading.value = false;
 
   if (res.success) {

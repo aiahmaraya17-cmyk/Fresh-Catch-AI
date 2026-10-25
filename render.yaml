@@ -13,7 +13,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: free            # upgrade to "starter" if the free tier sleeps/times out
+    plan: starter         # required for the persistent disk used by SQLite/uploads
     region: singapore     # closest region to the Philippines
     healthCheckPath: /api/health
     autoDeploy: true
@@ -28,8 +28,12 @@ services:
       - key: NODE_ENV
         value: production
       # Render injects PORT automatically; the server reads process.env.PORT.
-      - key: JWT_SECRET
-        generateValue: true          # Render generates a strong random secret
+      - key: FIREBASE_PROJECT_ID
+        value: freshcatch-ai
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
       - key: PYTHON_PATH
         value: /opt/venv/bin/python
       - key: DATABASE_PATH

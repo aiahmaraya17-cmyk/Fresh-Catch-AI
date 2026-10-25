@@ -1,142 +1,72 @@
-# FreshCatch AI — Deployment Guide
+# FreshCatch AI deployment
 
-This app has two deployable parts:
+## Services
 
-| Part | Where it goes | Why |
-|------|---------------|-----|
-| **Frontend** (Vue + Vite) | **Vercel** | Static site, perfect fit for Vercel |
-| **Backend API + Python AI** (Express + OpenCV/scikit-learn) | **Render** (Docker) | Needs a long-running server, a writable disk, and Python — which Vercel serverless cannot provide |
+| Component | Host | Notes |
+| --- | --- | --- |
+| Vue + Vite frontend | Vercel | Set the project root to `frontend`; the Vercel rewrite is in `frontend/vercel.json`. |
+| Express API + Python ML inference | Render | Deploy the root Dockerfile using `render.yaml`. The ML model and API run in one service. |
+| Authentication + user profiles | Firebase | Firebase Authentication handles email/password; Firestore stores user profiles and roles. |
 
-The frontend talks to the backend over HTTPS. You will deploy the **backend first**, get its URL, then deploy the **frontend** pointing at that URL, and finally tell the backend to trust the frontend's domain (CORS).
+Predictions, stalls, datasets, and other relational operational records remain in SQLite on Render's persistent disk. User profile/auth data lives in Firebase. The backend mirrors Firebase users into SQLite because existing app records reference integer user IDs.
 
----
+## Firebase setup
 
-## 0. One-time prerequisites
+In Firebase project `freshcatch-ai`:
 
-- A **GitHub** repository containing this project.
-- A **Vercel** account (free) — https://vercel.com
-- A **Render** account (free) — https://render.com
+1. Enable **Authentication → Sign-in method → Email/Password**.
+2. Create a Firestore database.
+3. Publish the root `firestore.rules` rules. They allow a signed-in user to manage only their own profile and prevent client-side role changes.
+4. Add the Vercel production domain under **Authentication → Settings → Authorized domains**.
+5. Create a service account under **Project settings → Service accounts** for the Render backend. Keep its private key secret.
 
-### Commit the AI model files
-Render builds from GitHub, so the model weights must be committed. The trained
-classifier (`freshcatch_cnn_v1.joblib`) is already tracked, but the ONNX fish-gate
-model may be untracked. From the project root:
+Self-registered users get the `consumer` role. To provision the first admin, create and sign in to that account, then use the Firebase Console to set `users/{uid}.role` to `admin`; subsequent promotions can use the admin user-management page/API. Firestore rules prevent users from changing their own role.
 
-```bash
-git add ai/models/saved/mobilenetv2_imagenet.onnx ai/models/saved/freshcatch_cnn_v1.joblib
-git add Dockerfile .dockerignore render.yaml ai/requirements-server.txt
-git add backend/ frontend/
-git commit -m "Prepare for deployment (Vercel + Render)"
-git push
-```
+## Deploy backend and ML to Render
 
-> Note: `ai/dataset/raw/` (training/demo images) is intentionally **not** deployed —
-> it is large and not needed for inference. The admin "Dataset" gallery will be
-> empty in production unless you seed it later.
+Create a Render Blueprint from the repository and use `render.yaml`. The blueprint builds the root Dockerfile, mounts `/data`, and configures the `/api/health` health check. Set these service environment variables:
 
----
+| Variable | Value |
+| --- | --- |
+| `NODE_ENV` | `production` |
+| `FIREBASE_PROJECT_ID` | `freshcatch-ai` |
+| `FIREBASE_CLIENT_EMAIL` | Service account `client_email` |
+| `FIREBASE_PRIVATE_KEY` | Service account `private_key`; paste full value (escaped `\\n` newlines are supported) |
+| `PYTHON_PATH` | `/opt/venv/bin/python` |
+| `DATABASE_PATH` | `/data/freshcatch.db` |
+| `UPLOAD_DIR` | `/data/uploads` |
+| `CORS_ORIGINS` | Vercel production URL, no trailing slash; add preview/custom domains separated by commas if needed |
 
-## 1. Deploy the backend to Render (Docker)
+The `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` values are server secrets. Do not add them to Vercel or any `VITE_*` variable. Wait for the first successful deploy and copy the Render origin, for example `https://freshcatch-api.onrender.com`.
 
-You can use the included blueprint (easiest) or configure manually.
+## Deploy frontend to Vercel
 
-### Option A — Blueprint (recommended)
-1. In Render click **New +** → **Blueprint**.
-2. Select your GitHub repo. Render reads **`render.yaml`** and proposes a
-   web service named `freshcatch-api` with a 1 GB disk mounted at `/data`.
-3. When prompted, set **`CORS_ORIGINS`** to a temporary value (you can leave it
-   blank for now and fill it in after step 2 — blank means "allow all", fine
-   for first test).
-4. Click **Apply**. Render builds the Docker image (installs Node + Python +
-   OpenCV + scikit-learn). First build takes several minutes.
-5. When live, note the URL, e.g. `https://freshcatch-api.onrender.com`.
+Import the repository into Vercel and set **Root Directory** to `frontend`. Build command is `npm run build`; output directory is `dist`. Add these environment variables for Production (and Preview if you use preview deployments), then redeploy after changing them:
 
-### Option B — Manual
-1. **New +** → **Web Service** → connect the repo.
-2. Runtime: **Docker**. Dockerfile path: `./Dockerfile`. Context: `.` (root).
-3. Add a **Disk**: mount path `/data`, size 1 GB.
-4. Add environment variables:
-   | Key | Value |
-   |-----|-------|
-   | `NODE_ENV` | `production` |
-   | `JWT_SECRET` | a long random string |
-   | `PYTHON_PATH` | `/opt/venv/bin/python` |
-   | `DATABASE_PATH` | `/data/freshcatch.db` |
-   | `UPLOAD_DIR` | `/data/uploads` |
-   | `CORS_ORIGINS` | (fill after step 2) |
-5. Health check path: `/api/health`. Create the service.
+| Variable | Value |
+| --- | --- |
+| `VITE_API_BASE_URL` | Render origin, e.g. `https://freshcatch-api.onrender.com` (no `/api`, no trailing slash) |
+| `VITE_FIREBASE_API_KEY` | `AIzaSyCRakMImm2C_h8DWzIdsymz9p7s8Gw6qFU` |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `freshcatch-ai.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | `freshcatch-ai` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `freshcatch-ai.firebasestorage.app` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `700006049129` |
+| `VITE_FIREBASE_APP_ID` | `1:700006049129:web:7a4aae56c6be2d434c49f8` |
 
-### Verify the backend
-Open `https://<your-render-url>/api/health` — you should see JSON with
-`"status": "healthy"`.
+These Firebase web app values are public browser configuration; Firebase security rules and API key restrictions provide protection. The backend service account key is private and belongs only in Render.
 
----
+Once Vercel has deployed, add its URL to Render `CORS_ORIGINS`, save/redeploy the backend, then confirm `/api/health`, account registration/login, and a fish scan.
 
-## 2. Deploy the frontend to Vercel
+## Local environment
 
-1. In Vercel click **Add New…** → **Project** → import your GitHub repo.
-2. Set **Root Directory** to **`frontend`** (important — the app is in a subfolder).
-3. Framework preset: **Vite** (auto-detected). Build command `npm run build`,
-   output directory `dist` (already set in `frontend/vercel.json`).
-4. Add an **Environment Variable**:
-   | Key | Value |
-   |-----|-------|
-   | `VITE_API_BASE_URL` | your Render URL, e.g. `https://freshcatch-api.onrender.com` (no trailing slash, no `/api`) |
-5. Click **Deploy**. Note the resulting URL, e.g.
-   `https://freshcatch-ai.vercel.app`.
+Copy `frontend/.env.example` to `frontend/.env.local`; it contains the Firebase web app values and leave `VITE_API_BASE_URL` blank when using the Vite proxy. Copy `backend/.env.example` to `backend/.env` and fill the Firebase Admin credentials. Never commit `.env` files or service account JSON/private keys.
 
----
+## Environment reference
 
-## 3. Connect the two (CORS)
+### Vercel
 
-Back in **Render** → your service → **Environment**:
+`VITE_API_BASE_URL` and all six `VITE_FIREBASE_*` values listed above. Vite embeds these into the browser build, so they must not contain secrets.
 
-1. Set **`CORS_ORIGINS`** to your Vercel URL (no trailing slash). For multiple
-   domains, separate with commas:
-   ```
-   CORS_ORIGINS=https://freshcatch-ai.vercel.app
-   ```
-2. Save — Render redeploys automatically.
+### Render
 
-Now open your Vercel URL, register/login, and run a fish scan. Images and
-predictions should work end-to-end.
-
----
-
-## 4. Notes, limits, and gotchas
-
-- **Free tier sleeps.** Render's free web service spins down after inactivity;
-  the first request afterwards may take ~30–60s (and Python cold-start adds a
-  little more). Upgrade to a paid plan for always-on.
-- **Persistent disk.** The SQLite DB and uploaded images live on `/data`. Do not
-  store them on the ephemeral container filesystem, or they vanish on redeploy.
-- **Database seeding.** On first boot the app creates tables and seeds demo
-  accounts automatically (see `backend/src/config/database.js`). If you want the
-  demo dataset gallery populated, run the seed script or upload images via the
-  admin UI.
-- **Changing the backend URL later** means updating `VITE_API_BASE_URL` in Vercel
-  (triggers a frontend rebuild) and `CORS_ORIGINS` in Render.
-- **Local development is unchanged.** With the env vars unset, the backend uses
-  local paths and permissive CORS, and the frontend uses the Vite dev proxy
-  (`npm run dev` in `frontend`, `npm run dev` in `backend`).
-
----
-
-## Environment variable reference
-
-### Backend (Render)
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `PORT` | Listen port (Render sets it) | `5000` |
-| `JWT_SECRET` | Signs auth tokens | long random string |
-| `NODE_ENV` | Mode | `production` |
-| `PYTHON_PATH` | Python interpreter for inference | `/opt/venv/bin/python` |
-| `CORS_ORIGINS` | Allowed frontend origins (CSV) | `https://freshcatch-ai.vercel.app` |
-| `DATABASE_PATH` | SQLite file on the disk | `/data/freshcatch.db` |
-| `UPLOAD_DIR` | Uploaded images on the disk | `/data/uploads` |
-| `DATASET_DIR` | (optional) dataset images | `/data/dataset` |
-
-### Frontend (Vercel)
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `VITE_API_BASE_URL` | Backend origin | `https://freshcatch-api.onrender.com` |
+`PORT` is supplied by Render. Set `NODE_ENV`, `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `PYTHON_PATH`, `DATABASE_PATH`, `UPLOAD_DIR`, and `CORS_ORIGINS`. A persistent disk is required for SQLite and uploaded files. Free Render services can sleep when idle, so their first request may take longer.

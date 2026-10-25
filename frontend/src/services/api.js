@@ -2,6 +2,8 @@
 //  - In local dev, leave VITE_API_BASE_URL empty → uses the Vite proxy (/api → localhost:5000).
 //  - In production (Vercel), set VITE_API_BASE_URL to the Render backend origin,
 //    e.g. https://freshcatch-api.onrender.com  (no trailing slash, no /api).
+import { firebaseAuth } from './firebase';
+
 export const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 const API_BASE = `${API_ORIGIN}/api`;
 
@@ -20,8 +22,10 @@ export function mediaUrl(pathOrUrl) {
 }
 
 class ApiService {
-  static getHeaders(isMultipart = false) {
-    const token = localStorage.getItem('freshcatch_token');
+  static async getHeaders(isMultipart = false) {
+    const token = firebaseAuth.currentUser
+      ? await firebaseAuth.currentUser.getIdToken()
+      : localStorage.getItem('freshcatch_token');
     const headers = {};
     if (!isMultipart) {
       headers['Content-Type'] = 'application/json';
@@ -34,7 +38,7 @@ class ApiService {
 
   static async request(endpoint, options = {}) {
     const isMultipart = options.body instanceof FormData;
-    const headers = { ...this.getHeaders(isMultipart), ...options.headers };
+    const headers = { ...await this.getHeaders(isMultipart), ...options.headers };
 
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {

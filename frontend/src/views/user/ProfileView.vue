@@ -60,7 +60,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/authStore';
-import ApiService from '../../services/api';
 import PasswordInput from '../../components/common/PasswordInput.vue';
 
 const authStore = useAuthStore();
@@ -78,14 +77,12 @@ async function handleUpdate() {
   isLoading.value = true;
   successMsg.value = '';
   try {
-    const res = await ApiService.updateProfile({
-      name: name.value,
-      password: password.value || undefined
-    });
+    const res = await authStore.updateProfile(name.value, password.value);
     if (res.success) {
-      authStore.user = res.user;
       successMsg.value = 'Profile updated successfully!';
       password.value = '';
+    } else {
+      successMsg.value = res.message || 'Could not update profile.';
     }
   } catch (err) {
     console.error('Update error:', err);
